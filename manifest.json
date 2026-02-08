@@ -1,6 +1,6 @@
 {
-  "name": "KLAP_DEGI_GPS",
-  "short_name": "KLAP_DEGI_GPS",
+  "name": "KLAP_DEGI_GPS_IP",
+  "short_name": "KLAP_DEGI_GPS_IP",
   "description": "BLEとGPSに対応したラップタイマーアプリです。",
   "start_url": "/index.html",
   "display": "fullscreen",
@@ -21,3 +21,4 @@
     }
   ]
 }
+
