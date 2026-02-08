@@ -5,67 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>KLAP DEGI ULTIMATE</title>
+    <title>KLAP DEGI ULTIMATE V2</title>
     <style>
         :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-dark); color: var(--hrc-white); font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
         #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
         #canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: calc(100% - 60px) !important; z-index: 1; }
-      .main-ui-container {
+
+        /* 3カラムコンテナ：垂直中央に配置 */
+        .main-ui-container {
             position: absolute;
-            right: 10px;
-            top: 80px;    /* タコメーターの下 */
-            bottom: 45px; /* ボタンの上 */
+            right: 15px;
+            top: 85px;    /* タコメーター下 */
+            bottom: 50px; /* ボタン上 */
             display: flex;
-            flex-direction: row; /* 項目を横に並べる */
-            align-items: center; /* 垂直方向の中央に揃える */
-            gap: 20px;
+            flex-direction: row; 
+            align-items: center; /* 3つのカラムを垂直中央に */
+            gap: 25px;           /* カラム間の隙間 */
             z-index: 20;
             pointer-events: none;
         }
-      /* 左カラム：数値3点セット（ここをひとまとめに中央寄せ） */
+
+        /* 左カラム：数値3点セット */
         #info-overlay {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             text-align: right;
-            gap: 5px;
-            /* 親の align-items: center により、これ自体が垂直中央に位置します */
         }
-        #rpm_val { font-size: 11vh; font-weight: 900; line-height: 0.8; text-shadow: 3px 3px 10px #000; }
-        #display1 { font-size: 15vh; font-weight: 900; line-height: 0.9; text-shadow: 4px 4px 15px #000; }
-        #display { font-size: 3.5vh; color: #bbb; text-shadow: 1px 1px 6px #000; }
-        .right-panels { display: flex; flex-direction: row; gap: 10px; height: 100%; align-items: flex-start; }
-       /* 中央カラム：ラップ履歴 */
+        #rpm_val { 
+            font-size: 11vh; 
+            font-weight: 900; 
+            line-height: 0.8; 
+            text-shadow: 3px 3px 10px #000;
+            margin-bottom: 15px; /* ここで回転数とラップの間隔を調整 */
+        }
+        #display1 { 
+            font-size: 15vh; 
+            font-weight: 900; 
+            line-height: 0.9; 
+            text-shadow: 4px 4px 15px #000;
+        }
+        #display { 
+            font-size: 3.5vh; 
+            color: #bbb; 
+            text-shadow: 1px 1px 6px #000;
+            margin-top: 5px;
+        }
+
+        /* 中央カラム：ラップ履歴 */
         #lap-panel {
             width: 140px;
-            height: 100%; /* 親の範囲内で最大限確保 */
+            max-height: 80%; /* 画面サイズに合わせて自動調整 */
             display: flex;
             flex-direction: column;
             border-top: 2px solid #333;
             overflow: hidden;
-            justify-content: center; /* 履歴も中央付近に */
-        }
-
-        /* 右カラム：SPEED / TEMP */
-        .data-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            width: 90px;
-            justify-content: center;
         }
         #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         #lap::-webkit-scrollbar { display: none; }
         .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
         .best-lap { color: var(--hrc-red); }
-       
+
+        /* 右カラム：SPEED / TEMP */
+        .data-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 90px;
+        }
         .data-box { display: flex; flex-direction: column; align-items: flex-end; }
         .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
         .val { font-size: 34px; font-weight: 900; line-height: 0.9; }
         
         footer { height: 45px; display: flex; gap: 4px; padding: 3px; background: #000; border-top: 1px solid #333; z-index: 100; position: fixed; bottom: 0; left: 0; right: 0; padding-bottom: env(safe-area-inset-bottom); }
-        button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; padding: 0; }
+        button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
     </style>
@@ -80,12 +94,10 @@
             <div id="display1">00:00.000</div>
             <div id="display">TOTAL 00:00.000</div>
         </div>
-        <div class="right-panels">
-            <div id="lap-panel"><div id="lap"></div></div>
-            <div class="data-panel">
-                <div class="data-box"><div class="label">SPEED</div><div class="val" id="speed_val">0</div></div>
-                <div class="data-box"><div class="label">TEMP</div><div class="val" id="temp_val">--</div></div>
-            </div>
+        <div id="lap-panel"><div id="lap"></div></div>
+        <div class="data-panel">
+            <div class="data-box"><div class="label">SPEED</div><div class="val" id="speed_val">0</div></div>
+            <div class="data-box"><div class="label">TEMP</div><div class="val" id="temp_val">--</div></div>
         </div>
     </div>
     <footer>
@@ -98,8 +110,8 @@
 </div>
 
 <script>
+/* JavaScriptロジック（前回の予測判定・iPhone対応3バイト通信をすべて維持） */
 'use strict';
-
 const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b", PULSE_UUID = "f4deb353-a4cf-4ffb-badb-2a5f2e3bb630";
 let currentRPM = 0, lastPos = null, lastLapTime = 0, pulseCount = 1;
 let LAP_LINE_P1 = { lat: 0, lon: 0 }, LAP_LINE_P2 = { lat: 0, lon: 0 };
@@ -108,10 +120,8 @@ let swState = 0, startTime = 0, lapStartTime = 0, lapRecords = [];
 let lastGpsDataTime = 0, lastBleDataTime = 0, watchId = null;
 let isFrozen = false, freezeDisplayTime = "", freezeStartTime = 0, previousSideOfLine = null;
 let isDemoMode = false, demoClickCount = 0, demoInterval = null, wakeLock = null;
-
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
-// --- 数学ヘルパー ---
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3;
     const f1 = lat1 * Math.PI / 180, f2 = lat2 * Math.PI / 180;
@@ -138,18 +148,15 @@ function getIntersectionTime(p1, p2) {
     return (t_ratio >= 0 && t_ratio <= 1) ? p1.time + (p2.time - p1.time) * t_ratio : null;
 }
 
-// --- ボタン色管理 (仕様再現) ---
 function updateButtonColors() {
     const now = Date.now();
     const gpsBtn = document.getElementById('intGpsBtn');
     if (lastGpsDataTime !== 0 && (now - lastGpsDataTime < 3000)) gpsBtn.style.backgroundColor = "var(--hrc-red)";
     else if (watchId !== null) gpsBtn.style.backgroundColor = "var(--hrc-orange)";
     else gpsBtn.style.backgroundColor = "#1a1a1a";
-
     const bleBtn = document.getElementById('btConnect');
     if (lastBleDataTime !== 0 && (now - lastBleDataTime < 2000)) bleBtn.style.backgroundColor = "var(--hrc-red)";
     else bleBtn.style.backgroundColor = "#1a1a1a";
-
     const reloadBtn = document.getElementById('reloadBtn');
     if (isDemoMode) { reloadBtn.classList.add('demo-active'); }
     else {
@@ -162,15 +169,12 @@ function updateButtonColors() {
 }
 setInterval(updateButtonColors, 1000);
 
-// --- 予測判定付きGPSラップ計測 ---
 function startInternalGps() {
     if (watchId !== null) return;
     if ("wakeLock" in navigator) navigator.wakeLock.request("screen").then(w => wakeLock = w).catch(()=>{});
-    
     watchId = navigator.geolocation.watchPosition(pos => {
         lastGpsDataTime = Date.now();
         document.getElementById('speed_val').textContent = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
-        
         const currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, time: Date.now() };
         if (swState === 1 && LAP_LINE_P1.lat !== 0) {
             const currentSide = getSideOfLine(currentPos.lat, currentPos.lon, LAP_LINE_P1.lat, LAP_LINE_P1.lon, LAP_LINE_P2.lat, LAP_LINE_P2.lon);
@@ -189,7 +193,6 @@ function startInternalGps() {
     }, ()=>{}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
 }
 
-// --- BLE通信 (iPhone対応3バイト版) ---
 async function ble() {
     try {
         const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
@@ -206,7 +209,7 @@ async function ble() {
             }
         });
         await char.startNotifications();
-    } catch (e) { alert("BLE Error: " + e); }
+    } catch (e) { console.error(e); }
 }
 
 function processLap(exactTime, useFreeze) {
@@ -270,7 +273,6 @@ function updateSettings() {
     }
 }
 
-// --- イベント制御 ---
 document.getElementById('intGpsBtn').onclick = startInternalGps;
 document.getElementById('btConnect').onclick = ble;
 document.getElementById('startBtn').onclick = () => {
@@ -301,5 +303,3 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
-
-
