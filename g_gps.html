@@ -44,7 +44,7 @@
             margin-bottom: 15px; /* ここで回転数とラップの間隔を調整 */
         }
         #display1 { 
-            font-size: 15vh; 
+           font-size: clamp(40px, 14vh + 3vw, 130px);
             font-weight: 900; 
             line-height: 0.9; 
             text-shadow: 4px 4px 15px #000;
@@ -311,6 +311,7 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
 
 
