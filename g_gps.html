@@ -44,22 +44,23 @@
             margin-bottom: 15px; /* ここで回転数とラップの間隔を調整 */
         }
         #display1 { 
-    /* 1. 高さを iPhone SE の限界（約70〜75px）で固定し、Androidでは少し大きくする */
+    /* 1. 高さは iPhone SE の限界を維持しつつ、Androidでは大きく */
     font-size: clamp(40px, 20vh, 100px); 
 
-    /* 2. 横幅を狭くするために文字の間隔をさらに詰める */
-    letter-spacing: -5px; 
+    /* 2. ★ここがポイント：画面の横幅(vw)に合わせて文字の間隔を自動調整 */
+    /* iPhone（幅狭）ではマイナスを大きくして詰め、Android（幅広）では自然な間隔に */
+    letter-spacing: calc(-7px + 1.5vw); 
 
-    /* 3. 文字を横方向に少しスリム（0.9倍）にして横幅を稼ぐ */
-    transform: scaleX(0.9);
-    transform-origin: right; /* 右側の履歴枠との位置関係を保つ */
+    /* 3. 横方向のスリム化も、画面幅が広いAndroidでは自動的に解除されるように設定 */
+    transform: scaleX(clamp(0.85, 0.2vw + 0.5, 1.0));
+    transform-origin: right;
 
     font-weight: 900; 
     line-height: 0.8; 
     color: var(--hrc-white); 
     text-shadow: 4px 4px 15px #000; 
     white-space: nowrap;
-    display: inline-block; /* transformを有効にするために必要 */
+    display: inline-block;
 }
         #display { 
             font-size: 3.5vh; 
@@ -323,6 +324,7 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
 
 
