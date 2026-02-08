@@ -43,14 +43,15 @@
             text-shadow: 3px 3px 10px #000;
             margin-bottom: 15px; /* ここで回転数とラップの間隔を調整 */
         }
-     #display1 { 
-    /* 1. 高さを少し下げて「バーへの被り」を解消 (19vh → 17vh) */
+    #display1 { 
+    /* 1. 高さは維持（バーに被らないサイズ） */
     font-size: 17vh; 
 
-    /* 2. 文字の横幅をグッと凝縮して「左右のはみ出し」を解消 */
-    /* 文字の間隔を詰め、さらに文字自体を横に0.85倍スリムにします */
-    letter-spacing: -5px; 
-    transform: scaleX(0.85);
+    /* 2. ★文字の間隔を少し広げる（-5px → -2px） */
+    letter-spacing: -2px; 
+
+    /* 3. ★その分、横幅のはみ出しを防ぐためにスリム度を少し強める（0.85 → 0.8） */
+    transform: scaleX(0.8);
     transform-origin: right; 
 
     font-weight: 900; 
@@ -58,7 +59,7 @@
     color: var(--hrc-white); 
     text-shadow: 4px 4px 15px #000; 
     white-space: nowrap;
-    display: inline-block; /* 横幅の調整を有効にするために必須 */
+    display: inline-block;
 }
         #display { 
             font-size: 3.5vh; 
@@ -322,6 +323,7 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
 
 
