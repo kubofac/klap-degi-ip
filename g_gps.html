@@ -43,25 +43,21 @@
             text-shadow: 3px 3px 10px #000;
             margin-bottom: 15px; /* ここで回転数とラップの間隔を調整 */
         }
-       #display1 { 
-    /* 1. 高さはiPhone SEでバーに被らない限界（19vh）に固定 */
-    font-size: 19vh; 
-
-    /* 2. iPhoneでの横はみ出しを確実に防ぐための最小限のスリム化 */
-    transform: scaleX(0.9);
-    transform-origin: right;
-
-    /* 3. ★Androidだけを大きくする魔法の1行 */
-    /* 画面の横幅が 500px（一般的なスマホの縦持ち幅）を超えた時だけ、文字を1.2倍に大きくし、間隔も広げます */
-    width: fit-content;
+      #display1 { 
+    font-size: 72px; /* SEでバーに被らず、横幅も収まる固定サイズ */
+    font-weight: 900; 
+    line-height: 0.8; 
+    color: var(--hrc-white); 
+    text-shadow: 4px 4px 15px #000; 
+    letter-spacing: -4px; /* 横幅を抑えるために強めに詰める */
+    white-space: nowrap;
 }
 
-/* Android（またはiPhone SEより横に長い端末）専用の調整 */
-@media screen and (min-aspect-ratio: 18/9) {
+/* 2. 「Android（横長端末）」の時だけ、文字を大きく、間隔を広く上書きする */
+@media screen and (min-width: 700px) {
     #display1 {
-        font-size: 22vh; /* Androidでは高さを少しアップ */
-        transform: scaleX(1.0); /* Androidでは文字を太く戻す */
-        letter-spacing: 2px; /* Androidでは文字の間隔をゆったり広げる */
+        font-size: 110px; /* Androidの広い画面を活かしたデカ文字 */
+        letter-spacing: 0px; /* 詰まった感をなくし、ゆったりさせる */
     }
 }
         #display { 
@@ -326,6 +322,7 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
 
 
