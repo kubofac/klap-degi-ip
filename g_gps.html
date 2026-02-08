@@ -44,11 +44,23 @@
             margin-bottom: 15px; /* ここで回転数とラップの間隔を調整 */
         }
         #display1 { 
-           font-size: clamp(40px, 14vh + 3vw, 130px);
-            font-weight: 900; 
-            line-height: 0.9; 
-            text-shadow: 4px 4px 15px #000;
-        }
+    /* 1. 高さを iPhone SE の限界（約70〜75px）で固定し、Androidでは少し大きくする */
+    font-size: clamp(40px, 20vh, 100px); 
+
+    /* 2. 横幅を狭くするために文字の間隔をさらに詰める */
+    letter-spacing: -5px; 
+
+    /* 3. 文字を横方向に少しスリム（0.9倍）にして横幅を稼ぐ */
+    transform: scaleX(0.9);
+    transform-origin: right; /* 右側の履歴枠との位置関係を保つ */
+
+    font-weight: 900; 
+    line-height: 0.8; 
+    color: var(--hrc-white); 
+    text-shadow: 4px 4px 15px #000; 
+    white-space: nowrap;
+    display: inline-block; /* transformを有効にするために必要 */
+}
         #display { 
             font-size: 3.5vh; 
             color: #bbb; 
@@ -311,6 +323,7 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
 
 
