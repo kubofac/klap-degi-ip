@@ -1,1 +1,8 @@
-
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.klap_degi_ip.twa",
+        "sha256_cert_fingerprints": ["59:EA:52:2B:00:CD:62:C0:02:C5:BE:AC:BD:9F:8B:F4:74:C2:DF:84:5B:BD:C3:1D:6D:23:C8:0D:B0:C9:5C:69"]
+      }
+    }]
