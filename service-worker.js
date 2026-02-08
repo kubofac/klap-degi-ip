@@ -1,4 +1,4 @@
-const CACHE_NAME = 'KLAP DEGI GPS';
+const CACHE_NAME = 'KLAP DEGI GPS IP';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -54,5 +54,6 @@ self.addEventListener('activate', (event) => {
   );
 
 });
+
 
 
