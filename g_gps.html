@@ -13,26 +13,28 @@
         #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
         #canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: calc(100% - 60px) !important; z-index: 1; }
 
-        /* 3カラムコンテナ：垂直中央に配置 */
+        /* 3カラムコンテナ：上端（top）の位置を基準に揃える */
         .main-ui-container {
             position: absolute;
             right: 15px;
-            top: 85px;    /* タコメーター下 */
-            bottom: 50px; /* ボタン上 */
+            top: 90px;    /* バーに重ならないよう少し下げて固定 */
+            bottom: 50px; 
             display: flex;
             flex-direction: row; 
-            align-items: center; /* 3つのカラムを垂直中央に */
-            gap: 25px;           /* カラム間の隙間 */
+            align-items: flex-start; /* 全カラムの上端を揃える */
+            gap: 25px;
             z-index: 20;
             pointer-events: none;
         }
 
-        /* 左カラム：数値3点セット */
+        /* 数値3点セットは「このエリア内」で垂直中央にいたいので個別に調整 */
         #info-overlay {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             text-align: right;
+            height: 100%;       /* 親の高さ（topからbottomまで）一杯に広げる */
+            justify-content: center; /* その中の中央に配置 */
         }
         #rpm_val { 
             font-size: 11vh; 
@@ -54,27 +56,31 @@
             margin-top: 5px;
         }
 
-        /* 中央カラム：ラップ履歴 */
+        /* 中央カラム：ラップ履歴（上端固定） */
         #lap-panel {
             width: 140px;
-            max-height: 80%; /* 画面サイズに合わせて自動調整 */
+            height: 100%; 
             display: flex;
             flex-direction: column;
             border-top: 2px solid #333;
             overflow: hidden;
+            /* align-items: flex-start により、自然に上から始まります */
+        }
+
+        /* 右カラム：SPEED / TEMP（上端固定） */
+        .data-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 90px;
+            /* 上端から並びます */
         }
         #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         #lap::-webkit-scrollbar { display: none; }
         .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
         .best-lap { color: var(--hrc-red); }
 
-        /* 右カラム：SPEED / TEMP */
-        .data-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 90px;
-        }
+      
         .data-box { display: flex; flex-direction: column; align-items: flex-end; }
         .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
         .val { font-size: 34px; font-weight: 900; line-height: 0.9; }
@@ -304,4 +310,5 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
