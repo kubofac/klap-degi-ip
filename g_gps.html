@@ -11,29 +11,55 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-dark); color: var(--hrc-white); font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
         #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
         #canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: calc(100% - 60px) !important; z-index: 1; }
-       .main-ui-container {
+      .main-ui-container {
             position: absolute;
-            right: 15px;      /* 右端からの距離 */
-            top: 80px;        /* タコメーター下部付近の開始位置 */
-            bottom: 45px;     /* ボタン上部（footerの高さ） */
+            right: 10px;
+            top: 80px;    /* タコメーターの下 */
+            bottom: 45px; /* ボタンの上 */
+            display: flex;
+            flex-direction: row; /* 項目を横に並べる */
+            align-items: center; /* 垂直方向の中央に揃える */
+            gap: 20px;
+            z-index: 20;
+            pointer-events: none;
+        }
+      /* 左カラム：数値3点セット（ここをひとまとめに中央寄せ） */
+        #info-overlay {
             display: flex;
             flex-direction: column;
-            justify-content: center; /* これが肝！上下の中央に配置する */
             align-items: flex-end;
-            z-index: 20;
-            pointer-events: none; /* 下の要素を触れるように */
+            text-align: right;
+            gap: 5px;
+            /* 親の align-items: center により、これ自体が垂直中央に位置します */
         }
-        #info-overlay { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 5px; }
         #rpm_val { font-size: 11vh; font-weight: 900; line-height: 0.8; text-shadow: 3px 3px 10px #000; }
         #display1 { font-size: 15vh; font-weight: 900; line-height: 0.9; text-shadow: 4px 4px 15px #000; }
         #display { font-size: 3.5vh; color: #bbb; text-shadow: 1px 1px 6px #000; }
         .right-panels { display: flex; flex-direction: row; gap: 10px; height: 100%; align-items: flex-start; }
-        #lap-panel { width: 140px; height: 100%; display: flex; flex-direction: column; border-top: 2px solid #333; overflow: hidden; }
+       /* 中央カラム：ラップ履歴 */
+        #lap-panel {
+            width: 140px;
+            height: 100%; /* 親の範囲内で最大限確保 */
+            display: flex;
+            flex-direction: column;
+            border-top: 2px solid #333;
+            overflow: hidden;
+            justify-content: center; /* 履歴も中央付近に */
+        }
+
+        /* 右カラム：SPEED / TEMP */
+        .data-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 90px;
+            justify-content: center;
+        }
         #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         #lap::-webkit-scrollbar { display: none; }
         .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
         .best-lap { color: var(--hrc-red); }
-        .data-panel { display: flex; flex-direction: column; gap: 10px; width: 90px; }
+       
         .data-box { display: flex; flex-direction: column; align-items: flex-end; }
         .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
         .val { font-size: 34px; font-weight: 900; line-height: 0.9; }
@@ -275,4 +301,5 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
