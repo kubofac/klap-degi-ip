@@ -43,24 +43,26 @@
             text-shadow: 3px 3px 10px #000;
             margin-bottom: 15px; /* ここで回転数とラップの間隔を調整 */
         }
-        #display1 { 
-    /* 1. 高さは iPhone SE の限界を維持しつつ、Androidでは大きく */
-    font-size: clamp(40px, 20vh, 100px); 
+       #display1 { 
+    /* 1. 高さはiPhone SEでバーに被らない限界（19vh）に固定 */
+    font-size: 19vh; 
 
-    /* 2. ★ここがポイント：画面の横幅(vw)に合わせて文字の間隔を自動調整 */
-    /* iPhone（幅狭）ではマイナスを大きくして詰め、Android（幅広）では自然な間隔に */
-    letter-spacing: calc(-7px + 1.5vw); 
-
-    /* 3. 横方向のスリム化も、画面幅が広いAndroidでは自動的に解除されるように設定 */
-    transform: scaleX(clamp(0.85, 0.2vw + 0.5, 1.0));
+    /* 2. iPhoneでの横はみ出しを確実に防ぐための最小限のスリム化 */
+    transform: scaleX(0.9);
     transform-origin: right;
 
-    font-weight: 900; 
-    line-height: 0.8; 
-    color: var(--hrc-white); 
-    text-shadow: 4px 4px 15px #000; 
-    white-space: nowrap;
-    display: inline-block;
+    /* 3. ★Androidだけを大きくする魔法の1行 */
+    /* 画面の横幅が 500px（一般的なスマホの縦持ち幅）を超えた時だけ、文字を1.2倍に大きくし、間隔も広げます */
+    width: fit-content;
+}
+
+/* Android（またはiPhone SEより横に長い端末）専用の調整 */
+@media screen and (min-aspect-ratio: 18/9) {
+    #display1 {
+        font-size: 22vh; /* Androidでは高さを少しアップ */
+        transform: scaleX(1.0); /* Androidでは文字を太く戻す */
+        letter-spacing: 2px; /* Androidでは文字の間隔をゆったり広げる */
+    }
 }
         #display { 
             font-size: 3.5vh; 
@@ -324,6 +326,7 @@ window.onload = () => { window.dispatchEvent(new Event('resize')); updateSetting
 </script>
 </body>
 </html>
+
 
 
 
