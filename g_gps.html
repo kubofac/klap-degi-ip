@@ -212,11 +212,35 @@ function drawTacho(rpm) {
     document.getElementById('rpm_val').textContent = Math.floor(rpm);
 }
 
+// この関数を探して、まるごと差し替えてください
 function updateButtonColors() {
     const now = Date.now();
+    
+    // GPSボタンの色
     const gpsBtn = document.getElementById('intGpsBtn');
     gpsBtn.style.backgroundColor = (lastGpsDataTime !== 0 && (now - lastGpsDataTime < 3000)) ? "var(--hrc-red)" : (watchId ? "var(--hrc-orange)" : "#1a1a1a");
+    
+    // BLEボタンの色
     document.getElementById('btConnect').style.backgroundColor = (lastBleDataTime !== 0 && (now - lastBleDataTime < 2000)) ? "var(--hrc-red)" : "#1a1a1a";
+    
+    // ★追加: TIMERボタンの色（計測中なら赤、停止中なら黒）
+    const startBtn = document.getElementById('startBtn');
+    if (swState === 1) {
+        startBtn.style.backgroundColor = "var(--hrc-red)";
+    } else {
+        startBtn.style.backgroundColor = "#1a1a1a";
+    }
+
+    // RELOADボタン（設定不足ならオレンジ、デモ中ならアニメーション）
+    const reloadBtn = document.getElementById('reloadBtn');
+    if (isDemoMode) {
+        reloadBtn.classList.add('demo-active');
+    } else {
+        reloadBtn.classList.remove('demo-active');
+        const req = ['startLineP1Lat', 'startLineP1Lon', 'startLineP2Lat', 'startLineP2Lon', 'pl1'];
+        const ok = req.every(k => localStorage.getItem(k) && localStorage.getItem(k) !== "0");
+        reloadBtn.style.backgroundColor = ok ? "#1a1a1a" : "var(--hrc-orange)";
+    }
 }
 setInterval(updateButtonColors, 1000);
 
@@ -271,3 +295,4 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
