@@ -76,9 +76,11 @@ let LAP_LINE_P1 = { lat: 0, lon: 0 }, LAP_LINE_P2 = { lat: 0, lon: 0 };
 let swState = 0, startTime = 0, lapStartTime = 0, lapRecords = [];
 let trackLogs = [], currentLapLog = [];
 let lastGpsDataTime = 0, lastBleDataTime = 0, watchId = null;
-let isFrozen = false, freezeDisplayTime = "", freezeStartTime = 0, previousSideOfLine = null;
+let isFrozen = false, freezeDisplayTime = "", freezeStartTime = 0;
 let isDemoMode = false, demoClickCount = 0, demoInterval = null, wakeLock = null;
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+
+// --- 1. 数学・地理計算ヘルパー (正確な判定用) ---
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3;
@@ -87,30 +89,65 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     const a = Math.sin(df/2)**2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-function getSideOfLine(pLat, pLon, l1Lat, l1Lon, l2Lat, l2Lon) {
-    return (l2Lon - l1Lon) * (pLat - l1Lat) - (l2Lat - l1Lat) * (pLon - l1Lon);
+
+// 線分(p1-p2)とスタートライン(LAP_LINE_P1-P2)の交差時刻を計算
+function getIntersectionTime(p1, p2) {
+    if (!LAP_LINE_P1.lat || !LAP_LINE_P2.lat) return null;
+    
+    // 行列式による交差判定 (t: 自車の進捗, u: ライン上の交点位置)
+    const den = (LAP_LINE_P2.lon - LAP_LINE_P1.lon) * (p2.lat - p1.lat) - (LAP_LINE_P2.lat - LAP_LINE_P1.lat) * (p2.lon - p1.lon);
+    if (Math.abs(den) < 1e-10) return null; // 平行
+
+    const t = ((LAP_LINE_P2.lon - LAP_LINE_P1.lon) * (LAP_LINE_P1.lat - p1.lat) - (LAP_LINE_P2.lat - LAP_LINE_P1.lat) * (LAP_LINE_P1.lon - p1.lon)) / den;
+    const u = ((p1.lat - p2.lat) * (LAP_LINE_P1.lon - p1.lon) - (p1.lon - p2.lon) * (LAP_LINE_P1.lat - p1.lat)) / den;
+
+    // t, u ともに 0〜1 ならば、ラインの有効幅（門）を通過した
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+        return p1.time + (p2.time - p1.time) * t; // 線形補間された「通過時刻」
+    }
+    return null;
 }
+
+// --- 2. GPS / BLE 通信 ---
 
 function startInternalGps() {
     if (watchId !== null) return;
     if ("wakeLock" in navigator) navigator.wakeLock.request("screen").then(w => wakeLock = w).catch(()=>{});
+    
     watchId = navigator.geolocation.watchPosition(pos => {
         lastGpsDataTime = Date.now();
         currentSpeedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
         document.getElementById('speed_val').textContent = currentSpeedKmh;
         
-        // 走行中（swState==1）の時だけ最高速を更新
         if (swState === 1 && currentSpeedKmh > maxSpeed) maxSpeed = currentSpeedKmh;
 
-        const currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, time: Date.now(), rpm: currentRPM, temp: currentTemp, speed: currentSpeedKmh };
+        const currentPos = { 
+            lat: pos.coords.latitude, 
+            lon: pos.coords.longitude, 
+            time: Date.now(), 
+            rpm: currentRPM, 
+            temp: currentTemp, 
+            speed: currentSpeedKmh 
+        };
+
         if (swState === 1) {
             currentLapLog.push(currentPos);
-            if (LAP_LINE_P1.lat !== 0) {
-                const currentSide = getSideOfLine(currentPos.lat, currentPos.lon, LAP_LINE_P1.lat, LAP_LINE_P1.lon, LAP_LINE_P2.lat, LAP_LINE_P2.lon);
-                if (lastPos && previousSideOfLine !== null && ((previousSideOfLine > 0 && currentSide < 0) || (previousSideOfLine < 0 && currentSide > 0))) {
-                    if (currentPos.time - lastLapTime >= (parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000)) processLap(currentPos.time, true);
+            
+            // 正確な判定ロジック
+            if (lastPos) {
+                const intersectionTime = getIntersectionTime(lastPos, currentPos);
+                if (intersectionTime !== null) {
+                    const timeSinceLastLap = intersectionTime - lastLapTime;
+                    const coolDown = parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000;
+                    
+                    // P1からの距離閾値チェック
+                    const dist = calculateDistance(currentPos.lat, currentPos.lon, LAP_LINE_P1.lat, LAP_LINE_P1.lon);
+                    const threshold = parseFloat(localStorage.getItem('gpsThreshold')) || 40;
+
+                    if (timeSinceLastLap >= coolDown && dist <= threshold) {
+                        processLap(intersectionTime, true);
+                    }
                 }
-                previousSideOfLine = currentSide;
             }
         }
         lastPos = currentPos;
@@ -137,14 +174,20 @@ async function ble() {
     } catch (e) { console.error(e); }
 }
 
+// --- 3. ラップ計測・ロギング ---
+
 function processLap(exactTime, useFreeze) {
+    // 跨いだ「瞬間」の時刻を使ってタイムを計算
     const lapTime = exactTime - (lapStartTime || startTime);
+    if (lapTime <= 0) return;
+
     lapRecords.unshift(lapTime);
     trackLogs.push([...currentLapLog]);
     currentLapLog = [];
     
-    // ラップごとの最高速表示などの処理が必要な場合はここに記述
-    lapStartTime = exactTime; lastLapTime = exactTime;
+    // 次のラップ計測の起点を「跨いだ瞬間」に補正（誤差の累積を防ぐ）
+    lapStartTime = exactTime; 
+    lastLapTime = exactTime;
 
     const d = document.getElementById('lap'); d.innerHTML = "";
     const best = Math.min(...lapRecords);
@@ -152,7 +195,11 @@ function processLap(exactTime, useFreeze) {
         const r = document.createElement('div'); r.className = `lap-row ${t === best ? 'best-lap' : ''}`;
         r.innerHTML = `<span>L${lapRecords.length-i}</span><span>${timeFormat(t)}</span>`; d.appendChild(r);
     });
-    if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapTime); freezeStartTime = Date.now(); }
+    if (useFreeze) { 
+        isFrozen = true; 
+        freezeDisplayTime = timeFormat(lapTime); 
+        freezeStartTime = Date.now(); 
+    }
 }
 
 function exportGPX() {
@@ -187,10 +234,11 @@ function tick() {
     } else { 
         document.getElementById('display1').textContent = timeFormat(now - lapStartTime); 
     }
-    // MAX表示はtick内で常に更新
     document.getElementById('max_speed_val').textContent = maxSpeed;
     requestAnimationFrame(tick);
 }
+
+// --- 4. 描画・UI制御 ---
 
 function drawTacho(rpm) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -212,26 +260,14 @@ function drawTacho(rpm) {
     document.getElementById('rpm_val').textContent = Math.floor(rpm);
 }
 
-// この関数を探して、まるごと差し替えてください
 function updateButtonColors() {
     const now = Date.now();
-    
-    // GPSボタンの色
     const gpsBtn = document.getElementById('intGpsBtn');
     gpsBtn.style.backgroundColor = (lastGpsDataTime !== 0 && (now - lastGpsDataTime < 3000)) ? "var(--hrc-red)" : (watchId ? "var(--hrc-orange)" : "#1a1a1a");
-    
-    // BLEボタンの色
     document.getElementById('btConnect').style.backgroundColor = (lastBleDataTime !== 0 && (now - lastBleDataTime < 2000)) ? "var(--hrc-red)" : "#1a1a1a";
-    
-    // ★追加: TIMERボタンの色（計測中なら赤、停止中なら黒）
     const startBtn = document.getElementById('startBtn');
-    if (swState === 1) {
-        startBtn.style.backgroundColor = "var(--hrc-red)";
-    } else {
-        startBtn.style.backgroundColor = "#1a1a1a";
-    }
+    startBtn.style.backgroundColor = (swState === 1) ? "var(--hrc-red)" : "#1a1a1a";
 
-    // RELOADボタン（設定不足ならオレンジ、デモ中ならアニメーション）
     const reloadBtn = document.getElementById('reloadBtn');
     if (isDemoMode) {
         reloadBtn.classList.add('demo-active');
@@ -295,5 +331,6 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
 
 
