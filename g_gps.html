@@ -91,7 +91,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// 線分(p1-p2)とスタートライン(LAP_LINE_P1-P2)の交差時刻を計算
+// 線分(p1-p2)とスタートライン(LAP_LINE_P1-P2)の交差および「向き」を計算
 function getIntersectionTime(p1, p2) {
     if (!LAP_LINE_P1.lat || !LAP_LINE_P2.lat) return null;
     
@@ -104,7 +104,24 @@ function getIntersectionTime(p1, p2) {
 
     // t, u ともに 0〜1 ならば、ラインの有効幅（門）を通過した
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-        return p1.time + (p2.time - p1.time) * t; // 線形補間された「通過時刻」
+        
+        // --- 逆走防止判定 (外積: Cross Product) ---
+        // 進行方向に向かって左(P1)から右(P2)へのベクトル
+        const Lx = LAP_LINE_P2.lon - LAP_LINE_P1.lon;
+        const Ly = LAP_LINE_P2.lat - LAP_LINE_P1.lat;
+        // 自車の移動ベクトル
+        const Vx = p2.lon - p1.lon;
+        const Vy = p2.lat - p1.lat;
+
+        // 外積がプラスなら「順走（ラインを前から跨いだ）」
+        const crossProduct = (Lx * Vy) - (Ly * Vx);
+
+        if (crossProduct > 0) {
+            return p1.time + (p2.time - p1.time) * t; // 線形補間された「通過時刻」
+        } else {
+            console.log("Direction check: Backward crossing ignored.");
+            return null;
+        }
     }
     return null;
 }
@@ -134,14 +151,14 @@ function startInternalGps() {
         if (swState === 1) {
             currentLapLog.push(currentPos);
             
-            // 正確な判定ロジック
             if (lastPos) {
+                // ここで外積判定込みの通過チェックを行う
                 const intersectionTime = getIntersectionTime(lastPos, currentPos);
                 if (intersectionTime !== null) {
                     const timeSinceLastLap = intersectionTime - lastLapTime;
                     const coolDown = parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000;
                     
-                    // P1からの距離閾値チェック
+                    // P1からの距離閾値チェック（円の判定）
                     const dist = calculateDistance(currentPos.lat, currentPos.lon, LAP_LINE_P1.lat, LAP_LINE_P1.lon);
                     const threshold = parseFloat(localStorage.getItem('gpsThreshold')) || 40;
 
@@ -178,7 +195,6 @@ async function ble() {
 // --- 3. ラップ計測・ロギング ---
 
 function processLap(exactTime, useFreeze) {
-    // 跨いだ「瞬間」の時刻を使ってタイムを計算
     const lapTime = exactTime - (lapStartTime || startTime);
     if (lapTime <= 0) return;
 
@@ -186,7 +202,6 @@ function processLap(exactTime, useFreeze) {
     trackLogs.push([...currentLapLog]);
     currentLapLog = [];
     
-    // 次のラップ計測の起点を「跨いだ瞬間」に補正（誤差の累積を防ぐ）
     lapStartTime = exactTime; 
     lastLapTime = exactTime;
 
@@ -332,6 +347,7 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
 
 
 
