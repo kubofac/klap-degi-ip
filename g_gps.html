@@ -79,6 +79,7 @@ let trackLogs = [], currentLapLog = [];
 let lastGpsDataTime = 0, lastBleDataTime = 0, watchId = null;
 let isFrozen = false, freezeDisplayTime = "", freezeStartTime = 0;
 let isDemoMode = false, demoClickCount = 0, demoInterval = null, wakeLock = null;
+let detectedDirection = null; // 最初の通過方向を保持 (null, 1, または -1)    
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
 // --- 1. 数学・地理計算ヘルパー (正確な判定用) ---
@@ -92,35 +93,39 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 // 線分(p1-p2)とスタートライン(LAP_LINE_P1-P2)の交差および「向き」を計算
+// --- 修正箇所2: getIntersectionTime 関数のロジック更新 ---
 function getIntersectionTime(p1, p2) {
     if (!LAP_LINE_P1.lat || !LAP_LINE_P2.lat) return null;
     
-    // 行列式による交差判定 (t: 自車の進捗, u: ライン上の交点位置)
     const den = (LAP_LINE_P2.lon - LAP_LINE_P1.lon) * (p2.lat - p1.lat) - (LAP_LINE_P2.lat - LAP_LINE_P1.lat) * (p2.lon - p1.lon);
-    if (Math.abs(den) < 1e-10) return null; // 平行
+    if (Math.abs(den) < 1e-10) return null; 
 
     const t = ((LAP_LINE_P2.lon - LAP_LINE_P1.lon) * (LAP_LINE_P1.lat - p1.lat) - (LAP_LINE_P2.lat - LAP_LINE_P1.lat) * (LAP_LINE_P1.lon - p1.lon)) / den;
     const u = ((p1.lat - p2.lat) * (LAP_LINE_P1.lon - p1.lon) - (p1.lon - p2.lon) * (LAP_LINE_P1.lat - p1.lat)) / den;
 
-    // t, u ともに 0〜1 ならば、ラインの有効幅（門）を通過した
-    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+    // tが0〜1なら「自車が線を跨いだ」
+    // uの制限を外す（または広げる）ことで「どこまでも続く線」になりますが、
+    // 後の distance <= threshold (カプセル判定) で有効幅を限定するため、ここでは跨ぎ判定を優先します。
+    if (t >= 0 && t <= 1) {
         
-        // --- 逆走防止判定 (外積: Cross Product) ---
-        // 進行方向に向かって左(P1)から右(P2)へのベクトル
+        // --- 方向判定 (外積) ---
         const Lx = LAP_LINE_P2.lon - LAP_LINE_P1.lon;
         const Ly = LAP_LINE_P2.lat - LAP_LINE_P1.lat;
-        // 自車の移動ベクトル
         const Vx = p2.lon - p1.lon;
         const Vy = p2.lat - p1.lat;
-
-        // 外積がプラスなら「順走（ラインを前から跨いだ）」
         const crossProduct = (Lx * Vy) - (Ly * Vx);
+        const currentMoveDir = crossProduct > 0 ? 1 : -1;
 
-        if (crossProduct > 0) {
-            return p1.time + (p2.time - p1.time) * t; // 線形補間された「通過時刻」
-        } else {
-            console.log("Direction check: Backward crossing ignored.");
-            return null;
+        // 【あなたのアイデア】初回通過時に方向を記憶
+        if (detectedDirection === null) {
+            detectedDirection = currentMoveDir;
+            console.log("Start direction memorized: " + detectedDirection);
+        }
+
+        // 記憶した方向と一致、かつ u が「線分の近く（カプセル内）」であるかチェック
+        // u が 0〜1 なら P1-P2 の真ん中。少し外れても良いように -0.2 〜 1.2 程度に遊びを持たせることも可能
+        if (currentMoveDir === detectedDirection && u >= -0.2 && u <= 1.2) {
+            return p1.time + (p2.time - p1.time) * t;
         }
     }
     return null;
@@ -307,11 +312,19 @@ document.getElementById('startBtn').onclick = () => {
         swState = 2; document.getElementById('saveLogBtn').style.display = 'flex';
     }
 };
+// --- 修正箇所3: リセットボタン（lapBtn）への初期化追加 ---
 document.getElementById('lapBtn').onclick = () => {
     if(swState === 1) processLap(Date.now(), false);
     else { 
-        swState = 0; lapRecords = []; trackLogs = []; currentLapLog = []; maxSpeed = 0;
-        document.getElementById('lap').innerHTML = ""; document.getElementById('display1').textContent="00:00.000"; document.getElementById('display').textContent="TOTAL 00:00.000"; 
+        swState = 0; 
+        lapRecords = []; 
+        trackLogs = []; 
+        currentLapLog = []; 
+        maxSpeed = 0;
+        detectedDirection = null; // 💡 方向記憶をリセット
+        document.getElementById('lap').innerHTML = ""; 
+        document.getElementById('display1').textContent="00:00.000"; 
+        document.getElementById('display').textContent="TOTAL 00:00.000"; 
         document.getElementById('max_speed_val').textContent = "0";
     }
 };
@@ -347,6 +360,7 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
 
 
 
