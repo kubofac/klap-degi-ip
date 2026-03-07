@@ -157,17 +157,19 @@ function startInternalGps() {
             currentLapLog.push(currentPos);
             
             if (lastPos) {
-                // ここで外積判定込みの通過チェックを行う
+                // 1. カプセル判定（線分交差・方向・有効幅u）を実行
+                // この getIntersectionTime の中で「u >= -0.2 && u <= 1.2」が判定されているため
+                // 実質的にこれが「カプセルの閾値」となります。
                 const intersectionTime = getIntersectionTime(lastPos, currentPos);
+
                 if (intersectionTime !== null) {
+                    const now = Date.now();
                     const timeSinceLastLap = intersectionTime - lastLapTime;
                     const coolDown = parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000;
                     
-                    // P1からの距離閾値チェック（円の判定）
-                    const dist = calculateDistance(currentPos.lat, currentPos.lon, LAP_LINE_P1.lat, LAP_LINE_P1.lon);
-                    const threshold = parseFloat(localStorage.getItem('gpsThreshold')) || 40;
-
-                    if (timeSinceLastLap >= coolDown && dist <= threshold) {
+                    // 2. クールダウン（例: 30秒）さえ経過していれば即ラップ確定
+                    // ここにあった「dist <= threshold」という「点(P1)からの距離判定」は不要なので削除しました。
+                    if (timeSinceLastLap >= coolDown) {
                         processLap(intersectionTime, true);
                     }
                 }
@@ -360,6 +362,7 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
 
 
 
