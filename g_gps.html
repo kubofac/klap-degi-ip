@@ -103,12 +103,9 @@ function getIntersectionTime(p1, p2) {
     const t = ((LAP_LINE_P2.lon - LAP_LINE_P1.lon) * (LAP_LINE_P1.lat - p1.lat) - (LAP_LINE_P2.lat - LAP_LINE_P1.lat) * (LAP_LINE_P1.lon - p1.lon)) / den;
     const u = ((p1.lat - p2.lat) * (LAP_LINE_P1.lon - p1.lon) - (p1.lon - p2.lon) * (LAP_LINE_P1.lat - p1.lat)) / den;
 
-    // tが0〜1なら「自車が線を跨いだ」
-    // uの制限を外す（または広げる）ことで「どこまでも続く線」になりますが、
-    // 後の distance <= threshold (カプセル判定) で有効幅を限定するため、ここでは跨ぎ判定を優先します。
+    // tが0〜1なら「自車が今回の1ステップで線を跨いだ」
     if (t >= 0 && t <= 1) {
-        
-        // --- 方向判定 (外積) ---
+        // 方向判定 (外積)
         const Lx = LAP_LINE_P2.lon - LAP_LINE_P1.lon;
         const Ly = LAP_LINE_P2.lat - LAP_LINE_P1.lat;
         const Vx = p2.lon - p1.lon;
@@ -116,14 +113,13 @@ function getIntersectionTime(p1, p2) {
         const crossProduct = (Lx * Vy) - (Ly * Vx);
         const currentMoveDir = crossProduct > 0 ? 1 : -1;
 
-        // 【あなたのアイデア】初回通過時に方向を記憶
+        // 初回通過時に方向を記憶
         if (detectedDirection === null) {
             detectedDirection = currentMoveDir;
             console.log("Start direction memorized: " + detectedDirection);
         }
 
-        // 記憶した方向と一致、かつ u が「線分の近く（カプセル内）」であるかチェック
-        // u が 0〜1 なら P1-P2 の真ん中。少し外れても良いように -0.2 〜 1.2 程度に遊びを持たせることも可能
+        // 記憶した方向と一致し、かつ設定したラインの幅(u)の中にいるか（遊び±20%）
         if (currentMoveDir === detectedDirection && u >= -0.2 && u <= 1.2) {
             return p1.time + (p2.time - p1.time) * t;
         }
@@ -135,14 +131,23 @@ function getIntersectionTime(p1, p2) {
 
 function startInternalGps() {
     if (watchId !== null) return;
-    if ("wakeLock" in navigator) navigator.wakeLock.request("screen").then(w => wakeLock = w).catch(()=>{});
+    
+    // スリープ防止（WakeLock API）
+    if ("wakeLock" in navigator) {
+        navigator.wakeLock.request("screen").then(w => wakeLock = w).catch(()=>{});
+    }
     
     watchId = navigator.geolocation.watchPosition(pos => {
         lastGpsDataTime = Date.now();
+        
+        // 速度の更新（m/sからkm/hへ）
         currentSpeedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
         document.getElementById('speed_val').textContent = currentSpeedKmh;
         
-        if (swState === 1 && currentSpeedKmh > maxSpeed) maxSpeed = currentSpeedKmh;
+        // 最高速の更新
+        if (swState === 1 && currentSpeedKmh > maxSpeed) {
+            maxSpeed = currentSpeedKmh;
+        }
 
         const currentPos = { 
             lat: pos.coords.latitude, 
@@ -154,29 +159,37 @@ function startInternalGps() {
         };
 
         if (swState === 1) {
+            // 現在のラップログにポイントを追加
             currentLapLog.push(currentPos);
             
             if (lastPos) {
-                // 1. カプセル判定（線分交差・方向・有効幅u）を実行
-                // この getIntersectionTime の中で「u >= -0.2 && u <= 1.2」が判定されているため
-                // 実質的にこれが「カプセルの閾値」となります。
+                // 💡 線分交差・方向・カプセル幅(u)を統合判定
                 const intersectionTime = getIntersectionTime(lastPos, currentPos);
 
                 if (intersectionTime !== null) {
-                    const now = Date.now();
                     const timeSinceLastLap = intersectionTime - lastLapTime;
+                    // ローカルストレージから不感帯（クールダウン）を取得（デフォルト15秒）
                     const coolDown = parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000;
                     
-                    // 2. クールダウン（例: 30秒）さえ経過していれば即ラップ確定
-                    // ここにあった「dist <= threshold」という「点(P1)からの距離判定」は不要なので削除しました。
+                    // 💡 不感帯を過ぎていればラップ確定
                     if (timeSinceLastLap >= coolDown) {
+                        // intersectionTime（補間計算された通過時刻）を使用して正確にラップを切る
                         processLap(intersectionTime, true);
                     }
                 }
             }
         }
+        // 前回の座標を保存
         lastPos = currentPos;
-    }, ()=>{}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+        
+    }, (error) => {
+        console.error("GPS Error: ", error);
+        alert("GPSの取得に失敗しました。設定を確認してください。");
+    }, { 
+        enableHighAccuracy: true, 
+        timeout: 5000, 
+        maximumAge: 0 
+    });
 }
 
 async function ble() {
@@ -227,19 +240,55 @@ function processLap(exactTime, useFreeze) {
 
 function exportGPX() {
     if (trackLogs.length === 0 && currentLapLog.length === 0) return;
+    
+    // 解析ソフトがラインを自動認識するためのメタデータ
+    const slData = `SL:${LAP_LINE_P1.lat},${LAP_LINE_P1.lon},${LAP_LINE_P2.lat},${LAP_LINE_P2.lon}`;
     const all = [...trackLogs, currentLapLog];
-    let gpx = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP_ULTIMATE" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">`;
+    
+    // 全セッションの最初の1点目を「基準0秒」とする
+    const sessionStartTime = all[0][0]?.time || Date.now();
+
+    let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="KLAP_ULTIMATE" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+<metadata>
+    <name>Race Session ${new Date().toLocaleString()}</name>
+    <desc>LINE_DATA[${slData}]</desc>
+</metadata>`;
+
     all.forEach((lap, i) => {
         if (lap.length === 0) return;
-        gpx += `\n<trk><name>Lap ${i+1}</name><trkseg>`;
-        lap.forEach(p => { 
-            gpx += `\n  <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}"><time>${new Date(p.time).toISOString()}</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr><gpxtpx:atemp>${p.temp}</gpxtpx:atemp></gpxtpx:TrackPointExtension><speed>${(p.speed / 3.6).toFixed(2)}</speed></extensions></trkpt>`; 
+        gpx += `\n<trk><name>Lap ${i + 1}</name><trkseg>`;
+        lap.forEach(p => {
+            // 💡 2000年1月1日 00:00:00 UTC (946684800000ms) を基準に経過時間を加算
+            // これにより解析ソフトが「0秒から始まったクリーンなデータ」として扱えるようになります
+            const relativeTime = new Date(946684800000 + (p.time - sessionStartTime)).toISOString();
+            
+            gpx += `
+    <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}">
+      <time>${relativeTime}</time>
+      <speed>${(p.speed / 3.6).toFixed(2)}</speed>
+      <extensions>
+        <gpxtpx:TrackPointExtension>
+          <gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr>
+          <gpxtpx:atemp>${p.temp}</gpxtpx:atemp>
+        </gpxtpx:TrackPointExtension>
+      </extensions>
+    </trkpt>`;
         });
         gpx += `\n</trkseg></trk>`;
     });
+
     gpx += `\n</gpx>`;
+    
     const blob = new Blob([gpx], { type: 'application/gpx+xml' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `RaceLog_${Date.now()}.gpx`; a.click();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `RaceLog_${Date.now()}.gpx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function timeFormat(ms) {
@@ -316,18 +365,21 @@ document.getElementById('startBtn').onclick = () => {
 };
 // --- 修正箇所3: リセットボタン（lapBtn）への初期化追加 ---
 document.getElementById('lapBtn').onclick = () => {
-    if(swState === 1) processLap(Date.now(), false);
-    else { 
+    if(swState === 1) {
+        processLap(Date.now(), false);
+    } else { 
+        // 完全リセット処理
         swState = 0; 
         lapRecords = []; 
         trackLogs = []; 
         currentLapLog = []; 
         maxSpeed = 0;
-        detectedDirection = null; // 💡 方向記憶をリセット
+        detectedDirection = null; // 💡 方向の記憶をリセット
         document.getElementById('lap').innerHTML = ""; 
         document.getElementById('display1').textContent="00:00.000"; 
         document.getElementById('display').textContent="TOTAL 00:00.000"; 
         document.getElementById('max_speed_val').textContent = "0";
+        alert("データをリセットしました。次の計測では最初のライン通過方向が正転になります。");
     }
 };
 
