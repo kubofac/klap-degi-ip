@@ -333,72 +333,79 @@ function drawTacho(rpm) {
 
     // --- レイアウト設定 ---
     const footerHeight = 65;
-    const sideMargin = 55;  // 左端の数値スペース
-    const topMargin = 75;   // 上端の数値スペース
-    const rad = 100;        // 円弧の半径（iPhoneでも余裕が出るサイズ）
-    const barWeight = 45;   // ★バーの太さ（ここを変えれば一気に変わります）
+    const sideMargin = 60;  
+    const topMargin = 85;   
+    const rad = 140; // 緩やかな円弧
+    const barWeight = 45; // 極太45px
 
-    // 1. タコメーターの「道筋（パス）」を定義
+    // 1. メーターの軌道パス
     const path = new Path2D();
-    path.moveTo(sideMargin, h - footerHeight); // 開始点（左下）
-    path.lineTo(sideMargin, topMargin + rad);  // 垂直立ち上がり
-    path.arc(sideMargin + rad, topMargin + rad, rad, Math.PI, Math.PI * 1.5); // 円弧
-    path.lineTo(w - 35, topMargin);            // 右端まで直線
+    path.moveTo(sideMargin, h - footerHeight);
+    path.lineTo(sideMargin, topMargin + rad);
+    path.arc(sideMargin + rad, topMargin + rad, rad, Math.PI, Math.PI * 1.5);
+    path.lineTo(w - 40, topMargin); 
 
-    // 2. 背景（グレーの土台）を描画
+    // 2. 背景（未到達部分：常に暗いグレー）
     ctx.beginPath();
-    ctx.strokeStyle = "#1a1a1a";
+    ctx.strokeStyle = "#222222"; 
     ctx.lineWidth = barWeight;
-    ctx.lineCap = "butt"; // 端を四角く
+    ctx.lineCap = "butt";
     ctx.stroke(path);
 
-    // 3. 現在の回転数（色付きバー）を描画
-    const totalLength = (h - footerHeight - (topMargin + rad)) + (Math.PI * rad / 2) + (w - 35 - (sideMargin + rad));
+    // 3. 回転数バー（到達部分の色分け）
+    const vLen = h - footerHeight - (topMargin + rad); 
+    const cLen = (Math.PI * rad) / 2;                 
+    const hLen = w - 40 - (sideMargin + rad);         
+    const totalLength = vLen + cLen + hLen;
     const activeLength = (rpm / 14000) * totalLength;
 
     ctx.save();
-    ctx.setLineDash([activeLength, totalLength]); // 回転数分だけ線を描く
-    ctx.lineDashOffset = 0;
+    ctx.setLineDash([activeLength, totalLength]);
     
-    // 色の決定
-    if (rpm >= 12500) ctx.strokeStyle = "#FF0000";
-    else if (rpm >= 8000) ctx.strokeStyle = "#0055FF";
-    else ctx.strokeStyle = "#FFFFFF";
+    // --- 【ご指定の色使い分けロジック】 ---
+    if (rpm >= 11000) {
+        ctx.strokeStyle = "#FF0000"; // 11,000rpm〜：赤
+    } else if (rpm >= 6000) {
+        ctx.strokeStyle = "#0055FF"; // 6,000〜11,000rpm：青
+    } else {
+        ctx.strokeStyle = "#FFFFFF"; // 〜6,000rpm：白
+    }
     
     ctx.stroke(path);
     ctx.restore();
 
-    // 4. 数値（ラベル）を描画
-    drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight);
+    // 4. 数値（ラベル）描画
+    drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, rpm);
 }
 
-// 数値描画専用サブ関数
-function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight) {
+function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, rpm) {
     ctx.font = "italic 900 28px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const offset = 55;
+    const offset = 60; 
 
     for (let i = 0; i <= 14; i++) {
+        const targetRpm = i * 1000;
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.2) { // 0〜2付近（垂直）
+        if (prog < 0.2) { 
             lx = sideMargin - offset;
             ly = (h - footerHeight) - (prog / 0.2) * (h - footerHeight - (topMargin + rad));
-        } else if (prog < 0.5) { // 3〜7付近（円弧）
+        } else if (prog < 0.5) { 
             const p = (prog - 0.2) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = topMargin + rad + Math.sin(theta) * (rad + offset);
-        } else { // 8〜14（水平）
-            const p = (prog - 0.5) / 0.5;
-            lx = (sideMargin + rad) + p * (w - 35 - (sideMargin + rad));
+        } else { 
+            lx = (sideMargin + rad) + ((prog - 0.5) / 0.5) * (w - 40 - (sideMargin + rad));
             ly = topMargin - offset;
         }
 
-        ctx.fillStyle = "#fff";
-        ctx.fillText(i, Math.max(20, Math.min(w - 20, lx)), Math.max(25, ly));
+        // --- 数字の色指定 ---
+        // 到達時：白(#FFFFFF) / 未到達時：グレー(#444444)
+        ctx.fillStyle = rpm >= targetRpm ? "#FFFFFF" : "#444444";
+        ctx.fillText(i, Math.max(25, Math.min(w - 25, lx)), Math.max(30, ly));
     }
 }
 
