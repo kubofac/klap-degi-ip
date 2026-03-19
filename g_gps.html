@@ -32,7 +32,7 @@ canvas {
     left: 0;
     width: 100vw !important;  /* 画面幅いっぱいに強制 */
     height: 100vh !important; /* 画面高さいっぱいに強制 */
-    z-index: 100;       /* 他のUI（ボタン等）より背面なら低く、前面なら高く調整 */
+    z-index: -1;       /* 他のUI（ボタン等）より背面なら低く、前面なら高く調整 */
     pointer-events: none; /* Canvasの下にあるボタンを触れるようにする */
 }
         .main-ui-container {
