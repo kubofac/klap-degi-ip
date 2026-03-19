@@ -311,14 +311,9 @@ function tick() {
 }
 
 // --- 4. 描画・UI制御 ---
-
-// --- 4. 描画・UI制御 ---
-
 function drawTacho(rpm) {
     if (!canvas.width || !canvas.height) return;
     
-    // ctx.scale(dpr, dpr) を使っているため、描画コード内では 
-    // css上のサイズ（window.innerWidth等）を基準に計算します
     const w = window.innerWidth;
     const h = window.innerHeight - 60;
     
@@ -327,15 +322,20 @@ function drawTacho(rpm) {
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
     
-    // 画面の「左下」を基準点にするための設定
-    const sX = w * 0.05;      // 左端から5%
-    const hY = h * 0.20;      // 上部ラインの高さ（画面上から20%）
-    const bY = h * 0.80;      // カーブ開始の高さ（画面上から80% ＝ 下の方）
-    const rad = bY - hY;      // 半径を高さの差で決定
+    // --- レイアウトの基準値を修正 ---
+    const sX = w * 0.08;       // 左端の余白を少し増やす
+    const hY = h * 0.22;       // 上部の水平ライン高さ
     
+    // 半径(rad)を「画面横幅」と「画面高さ」の小さい方を基準にする (iPhone 8対策)
+    // これにより、数字が画面外に押し出されるのを防ぎます
+    const rad = Math.min(w * 0.35, h * 0.55); 
+    
+    // バーの開始位置（縦方向）
+    const bY = hY + rad;      
+
     const curveEnd = 30; 
-    const barWidth = w * 0.007; // バーの太さを画面横幅の0.7%に固定
-    const barLength = rad * 0.22;
+    const barWidth = w * 0.008; 
+    const barLength = rad * 0.25; // バーの長さも半径に比例させる
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
@@ -354,13 +354,19 @@ function drawTacho(rpm) {
             ang = 1.5 * Math.PI;
         }
 
-        // ラベル（数字）
+        // --- 数字ラベルの描画位置を修正 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic bold ${Math.round(h * 0.05)}px Arial`; 
+            // 文字サイズを少し小さく調整
+            ctx.font = `italic bold ${Math.round(rad * 0.18)}px Arial`; 
             ctx.textAlign = "center";
-            const labelDist = rad * 0.45;
+            ctx.textBaseline = "middle";
+            
+            // 数字を配置する距離（バーの内側：半径の約65%の位置）
+            // これで画面内に確実に収めます
+            const labelDist = rad * 0.65; 
+            
             ctx.fillText(
                 Math.round((i / segments) * 14), 
                 x + Math.cos(ang) * labelDist, 
@@ -383,7 +389,6 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // 均一な太さで描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
