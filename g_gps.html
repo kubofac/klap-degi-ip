@@ -334,14 +334,7 @@ function drawTacho(rpm) {
     const active = Math.floor((rpm / 14000) * segments);
 
     // --- 【重要】iPhone 8の幅(375px)に合わせた極小マージン設計 ---
-    はい、提示していただいたそのコードブロックを書き換えるのが正解です。
-
-iPhone 8で「寸詰まり（右が短い）」にならず、かつ「緩やかな楕円」に見せるためには、一律の curveRadius ではなく、横の半径（rx）と縦の半径（ry）を分ける 修正が必要です。
-
-以下のように書き換えてみてください。
-
-iPhone 8 最適化版：楕円カーブ・ロジック
-JavaScript
+    
     const footerHeight = 60;  
     const sideMargin = 50;    // 左端の数値スペース
     const topMargin = 75;     // 上端の数値スペース
