@@ -333,33 +333,34 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // 【解決策1】高精度な画面サイズ取得
-    const dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // 【最重要】windowではなく、ドキュメント全体の「物理的な幅」を強制取得
+    // これにより、1カラム目の枠を無視して画面の端から端までをキャンバスにします
+    const w = document.documentElement.clientWidth || window.innerWidth;
+    const h = document.documentElement.clientHeight || window.innerHeight;
 
-    // キャンバスの「物理サイズ」と「表示サイズ」をiPhoneに最適化
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    ctx.scale(dpr, dpr); // 描画座標を論理ピクセルに合わせる
+    // キャンバスを画面リサイズに完全に追従させる
+    if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+    }
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) 右端突き抜け・高位置設定 ---
-    const sideMargin = 20;   // 左端（0, 1用）
-    const topMargin = 60;    // SPEED表示の上（かなり高い位置）
+    // --- iPhone 8 (375px) 1カラム目突き抜け設定 ---
+    const sideMargin = 15;   // 左端ギリギリ
+    const topMargin = 60;    // SPEEDの上
     const footerHeight = h * 0.85; 
-    const barWeight = 48;   
+    const barWeight = 50;   
 
-    // 【解決策2】R（半径）を画面幅に連動させつつ、iPhone8でも右に余裕を作る
-    // 画面幅の20%に抑えることで、右側への「直線」を180px以上確保
-    const rad = w * 0.20; 
+    // 【解決の鍵】R（半径）を小さく（75px）し、左側で即座に曲げます。
+    // これにより、右側へ向かう直線の「開始地点」が左に寄り、右端まで長く伸びます。
+    const rad = 75; 
     
-    // 【解決策3】右端(rLimit)を「w」そのものにする（突き抜けを保証）
-    const rLimit = w; 
+    // 右端を「画面幅(w)の100%」に。1カラム目の境界を物理的に無視します。
+    const rLimit = w - 5; 
     const vLimit = topMargin + rad; 
 
-    // パス計算
+    // 1. 各セクションの長さを計算
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
     const hLen = rLimit - (sideMargin + rad); 
@@ -369,14 +370,15 @@ function drawTacho(rpm) {
     function createPath(c) {
         c.beginPath();
         c.lineCap = "butt";
-        c.lineJoin = "round";
+        c.lineJoin = "miter";
         c.moveTo(sideMargin, footerHeight);
         c.lineTo(sideMargin, vLimit);
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        c.lineTo(rLimit, topMargin); // 画面の本当の右端(w)まで到達
+        // ここで右端（w-5）まで一気に線を引く
+        c.lineTo(rLimit, topMargin);
     }
 
-    // 背景
+    // 2. 背景（グレー）
     ctx.save();
     createPath(ctx);
     ctx.strokeStyle = "#222222"; 
@@ -384,7 +386,7 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // バー（色分け）
+    // 3. 回転数バー（色分け）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
@@ -397,33 +399,33 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 数値ラベル
+    // 4. 数値（ラベル）：常にグレー
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#666666"; 
-
+    ctx.fillStyle = "#555";
     const offset = 42; 
+
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.08) { // 垂直
+        if (prog < 0.1) { 
             lx = sideMargin - offset;
-            ly = footerHeight - (prog / 0.08) * vLen;
-        } else if (prog < 0.28) { // 円弧
-            const p = (prog - 0.08) / 0.2;
+            ly = footerHeight - (prog / 0.1) * vLen;
+        } else if (prog < 0.3) { 
+            const p = (prog - 0.1) / 0.2;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { // 直線
-            const p = (prog - 0.28) / 0.72;
-            lx = (sideMargin + rad) + p * (rLimit - (sideMargin + rad));
+        } else { 
+            const p = (prog - 0.3) / 0.7;
+            // 数値も右端(w-20)まで等間隔に配置
+            lx = (sideMargin + rad) + p * (w - 20 - (sideMargin + rad));
             ly = topMargin - offset;
         }
         
         // 数値が画面外へ消えないよう保護
-        const finalX = Math.max(15, Math.min(w - 15, lx));
+        const finalX = Math.max(12, Math.min(w - 12, lx));
         ctx.fillText(i, finalX, ly);
     }
 }
