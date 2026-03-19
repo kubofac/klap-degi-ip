@@ -331,36 +331,38 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) でも「右端」まで到達させる可変設定 ---
-    const footerHeight = 60;
-    const sideMargin = w * 0.12;  // 左余白を画面幅の12%に（iPhone8で約45px）
-    const topMargin = 80;         
+    // --- iPhone 8 (375px) 重なり・寸詰め完全解消設定 ---
+    const footerHeight = 50; 
+    const sideMargin = 45;   
+    const topMargin = 75;    // 数字「14」の高さ（これより上にはいかない）
     
-    // 【滑らかなRと右端到達の両立】
-    // 半径を画面幅の35%に設定。iPhone8で約130pxになり、滑らかさを保ちつつ右にスペースを残します。
-    const rad = w * 0.35; 
+    // 滑らかさを維持しつつ、右側のスペースを確保する黄金比
+    const rad = w * 0.32; 
     const barWeight = 45; 
 
-    const rLimit = w - 30;        // 右端（14の数字の下）
-    const vLimit = h - footerHeight - 40; // 垂直は短く（40px）
+    // 【解決策1】垂直の立ち上がりを「30px」に固定。これで数字との重なりを防ぎます。
+    const vLen = 30; 
+    const vLimit = h - footerHeight - vLen; 
+    
+    // 【解決策2】右端のゴールを画面幅の92%に設定（1カラム目で終わらせない）
+    const rLimit = w * 0.92; 
 
-    // 1. 各セクションの長さを計算
-    const vLen = 40; 
+    // 軌道計算
     const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rLimit - (sideMargin + rad); // ここが必ず正の数になるようradを設計
+    const hLen = rLimit - (sideMargin + rad);         
     const totalLen = vLen + cLen + hLen;
     const activeLen = (rpm / 14000) * totalLen;
 
-    // パス作成
     function createPath(c) {
         c.beginPath();
         c.moveTo(sideMargin, h - footerHeight);
-        c.lineTo(sideMargin, vLimit);
+        c.lineTo(sideMargin, vLimit); // 少しだけ登る
+        // 低い位置から大きく右へ回る
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        c.lineTo(rLimit, vLimit - rad);
+        c.lineTo(rLimit, vLimit - rad); // 右端まで一直線
     }
 
-    // 2. 背景（濃いグレー）
+    // 1. 背景（未到達：濃いグレー）
     ctx.save();
     createPath(ctx);
     ctx.strokeStyle = "#222222"; 
@@ -369,7 +371,7 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 回転数バー（色分け）
+    // 2. 回転数バー（到達部分：色分け）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
@@ -383,61 +385,31 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 4. 数値（ラベル）
+    // 3. 数値（ラベル）描画
     ctx.font = "italic 900 28px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "#555555"; // 数字は常にグレー
+    ctx.fillStyle = "#555555"; // 常にグレー
 
-    const offset = 60; 
+    const offset = 55; 
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.1) { // 0〜1
+        // 配分を低重心に同期（0-1: 垂直 / 2-5: 円弧 / 6-14: 直線）
+        if (prog < 0.1) { 
             lx = sideMargin - offset;
             ly = (h - footerHeight) - (prog / 0.1) * vLen;
-        } else if (prog < 0.4) { // 2〜5
+        } else if (prog < 0.4) { 
             const p = (prog - 0.1) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { // 6〜14
-            const p = (prog - 0.4) / 0.6;
-            lx = (sideMargin + rad) + p * (rLimit - (sideMargin + rad));
-            ly = vLimit - rad - offset;
-        }
-        ctx.fillText(i, Math.max(25, Math.min(w - 25, lx)), Math.max(30, ly));
-    }
-}
-
-function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, vLimit, rLimit) {
-    ctx.font = "italic 900 28px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    const offset = 60; 
-
-    // 数字は常にこの色（落ち着いたグレー）
-    ctx.fillStyle = "#555555"; 
-
-    for (let i = 0; i <= 14; i++) {
-        const prog = i / 14;
-        let lx, ly;
-
-        if (prog < 0.2) { 
-            lx = sideMargin - offset;
-            ly = (h - footerHeight) - (prog / 0.2) * ((h - footerHeight) - vLimit);
-        } else if (prog < 0.5) { 
-            const p = (prog - 0.2) / 0.3;
-            const theta = Math.PI + (p * Math.PI / 2);
-            lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
-            ly = vLimit + Math.sin(theta) * (rad + offset);
         } else { 
-            const p = (prog - 0.5) / 0.5;
-            lx = (sideMargin + rad) + p * (rLimit - (sideMargin + rad));
-            ly = topMargin - offset;
+            const p = (prog - 0.4) / 0.6;
+            lx = (sideMargin + rad) + p * hLen;
+            ly = (vLimit - rad) - offset;
         }
-
         ctx.fillText(i, Math.max(25, Math.min(w - 25, lx)), Math.max(30, ly));
     }
 }
