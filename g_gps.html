@@ -314,70 +314,73 @@ function tick() {
 function drawTacho(rpm) {
     if (!canvas.width || !canvas.height) return;
     
-    // 画面サイズ（CSSピクセル）の取得
+    // CSSピクセル単位での幅と高さ
     const w = window.innerWidth;
-    const h = window.innerHeight - 45; // footer分を計算
+    const h = window.innerHeight - 60; // フッター分を多めに引く
     
     ctx.clearRect(0, 0, w, h);
     
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
     
-    // --- レイアウトの基準値を画面比率に合わせて再定義 ---
-    // 半径を画面の高さと幅の小さい方に合わせ、iPhone 8でもはみ出さないようにする
-    const rad = Math.min(w * 0.32, h * 0.60); 
+    // --- iPhone 8 でも絶対にはみ出さないための設計 ---
     
-    // 左下の開始点（iPhone 8で左下に配置するための固定オフセット）
-    const sX = 30; 
-    const bY = h * 0.88; 
+    // 1. 半径を「高さ」ベースで小さめに設定（画面横幅 w に依存しすぎない）
+    const rad = h * 0.45; 
     
-    // 上部の水平ライン高さ
+    // 2. 開始位置を「左端から少し右」「下端から少し上」に固定
+    // これにより「左下から始まらない」問題を解決します
+    const sX = 50;  // 左端からのマージン
+    const bY = h - 20; // 下端からのマージン
+    
+    // 3. 上部の水平ラインの高さを計算
     const hY = bY - rad; 
 
-    // カーブと直線の切り替え点（iPhone 8の16:9で歪まない比率）
+    // カーブが終わるセグメント（30個分で綺麗な90度）
     const curveEnd = 30; 
 
-    // バーの太さを画面幅の0.6%に固定（iPhone 8とAQUOSで見た目を統一）
-    const barWidth = w * 0.006; 
-    const barLength = rad * 0.22;
+    // バーの太さと長さ
+    const barWidth = 4; // 画面解像度に依存せず4px固定（dprスケールされるため）
+    const barLength = rad * 0.2; 
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
         
         if (i <= curveEnd) {
-            // 左下から左上への円弧
+            // 【左下から左上への円弧】
             prog = i / curveEnd;
+            // 開始角を Math.PI (9時方向) から 1.5*Math.PI (12時方向) へ
             ang = Math.PI + (prog * (Math.PI / 2));
             x = sX + rad + Math.cos(ang) * rad;
             y = hY + rad + Math.sin(ang) * rad;
         } else {
-            // 左上から右への直線
+            // 【左上から右への直線】
             prog = (i - curveEnd) / (segments - curveEnd);
-            x = (sX + rad) + (prog * (w * 0.94 - (sX + rad)));
+            x = (sX + rad) + (prog * (w * 0.9 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
         }
 
-        // --- 数字ラベルの描画 ---
+        // --- 数字（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic bold ${Math.round(rad * 0.18)}px Arial`; 
+            ctx.font = `italic bold ${Math.round(rad * 0.2)}px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 数字をバーの内側（半径の65%の位置）に配置し、画面外への突き抜けを防止
-            const labelDist = rad * 0.65; 
+            // 【重要】数字をバーの「内側」に配置する
+            // 距離を rad * 0.7 にすることで、バーより内側の安全圏に表示します
+            const labelDist = rad * 0.7; 
             
-            ctx.fillText(
-                Math.round((i / segments) * 14), 
-                x + Math.cos(ang) * labelDist, 
-                y + Math.sin(ang) * labelDist
-            );
+            const lx = x + Math.cos(ang) * labelDist;
+            const ly = y + Math.sin(ang) * labelDist;
+            
+            ctx.fillText(Math.round((i / segments) * 14), lx, ly);
             ctx.restore();
         }
 
-        // --- バーの描画 ---
+        // --- バー（目盛り）の描画 ---
         if (i < segments) {
             const currentRpmVal = (i / segments) * 14000;
             if (i < active) {
@@ -391,7 +394,7 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // 常に均一な barWidth で長方形を描画
+            // 均一な太さで描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
