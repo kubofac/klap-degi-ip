@@ -344,22 +344,17 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- 【Rの最適化】 ---
-    // iPhone 8 (375px) 以下なら R=85 で固定。
-    // AQUOS (400px〜) なら徐々に緩やか（最大120）にする。
+    // --- 1. レイアウト設定（レスポンシブR計算） ---
     let rad = 85; 
-    if (w > 375) {
-        rad = Math.min(120, 85 + (w - 375) * 0.5);
-    }
+    if (w > 375) rad = Math.min(120, 85 + (w - 375) * 0.5);
 
-    const sideMargin = 45;   
+    const sideMargin = 50;   // 開始位置を少し左寄りに固定
     const topMargin = 65;    
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
-    const rLimit = w; 
+    const rLimit = w;        // 右端（突き抜け保証）
     const vLimit = topMargin + rad; 
 
-    // 各区間の長さを計算
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
     const hLen = rLimit - (sideMargin + rad); 
@@ -376,56 +371,71 @@ function drawTacho(rpm) {
         c.lineTo(rLimit, topMargin);
     }
 
-    // 1. 背景（ベース）
+    // --- 2. 描画ステップ1：ベースのグレー ---
     ctx.save();
     createPath(ctx);
-    ctx.strokeStyle = "#222"; 
+    ctx.strokeStyle = "#222222";
     ctx.lineWidth = barWeight;
     ctx.stroke();
     ctx.restore();
 
-    // 2. 【解決：白い線の解消】
-    // setLineDashではなく、クリッピング（切り抜き）を使って描画します。
-    // これにより、色の境界に隙間（白い線）が出る現象を物理的に防ぎます。
+    // --- 3. 描画ステップ2：カラーバー（クリッピング方式） ---
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
-    
-    // 現在の回転数までを「描画可能エリア」として切り抜く
-    ctx.setLineDash([activeLen, totalLen]);
+    ctx.setLineDash([activeLen, totalLen]); 
     ctx.stroke(); 
-    ctx.clip(); // 以降、このラインの上しか塗れなくなる
+    ctx.clip(); // 現在の回転数より先には色が塗られないように制限
 
-    // --- 色の塗り分け（重なり順に描画） ---
-    // 全体を白で塗る
+    // 白・青・赤を重ね塗り（継ぎ目の白い線を防止）
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, w, h);
 
-    // 6000rpm以上の領域を青で上書き
     if (rpm >= 6000) {
-        const blueStart = (vLen + cLen + hLen) * (6000 / 14000);
         ctx.save();
-        ctx.setLineDash([totalLen, totalLen]); // 全線
-        ctx.lineDashOffset = -blueStart; // 6000の位置から開始
+        ctx.beginPath(); createPath(ctx);
+        ctx.lineWidth = barWeight + 2;
+        ctx.setLineDash([totalLen, totalLen]);
+        ctx.lineDashOffset = -totalLen * (6000 / 14000);
         ctx.strokeStyle = "#0055FF";
-        ctx.lineWidth = barWeight + 2; // 隙間防止に少し太く
         ctx.stroke();
         ctx.restore();
     }
-
-    // 11000rpm以上の領域を赤で上書き
     if (rpm >= 11000) {
-        const redStart = (vLen + cLen + hLen) * (11000 / 14000);
         ctx.save();
-        ctx.lineDashOffset = -redStart;
+        ctx.beginPath(); createPath(ctx);
+        ctx.lineWidth = barWeight + 4;
+        ctx.setLineDash([totalLen, totalLen]);
+        ctx.lineDashOffset = -totalLen * (11000 / 14000);
         ctx.strokeStyle = "#FF0000";
-        ctx.lineWidth = barWeight + 4; 
         ctx.stroke();
         ctx.restore();
     }
+    ctx.restore(); // クリッピング解除
+
+    // --- 4. 描画ステップ3：250rpm刻みのセグメント目盛り ---
+    ctx.save();
+    createPath(ctx);
+    ctx.lineWidth = barWeight + 10;
+    ctx.strokeStyle = "#000000"; // 背景色で断ち切る
+    
+    // 250回転ごとの細かい目盛り (14000 / 250 = 56分割)
+    const segmentWidth = 1.5; 
+    const totalSegments = 56;
+    const gap = (totalLen / totalSegments) - segmentWidth;
+    ctx.setLineDash([segmentWidth, gap]);
+    ctx.lineDashOffset = segmentWidth / 2;
+    ctx.stroke();
+
+    // 1000回転ごとの太い目盛りを重ねて視認性を出す
+    const majorWidth = 3;
+    const majorGap = (totalLen / 14) - majorWidth;
+    ctx.setLineDash([majorWidth, majorGap]);
+    ctx.lineDashOffset = majorWidth / 2;
+    ctx.stroke();
     ctx.restore();
 
-    // 3. 数値（ラベル）
+    // --- 5. 数値（ラベル）配置 ---
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
