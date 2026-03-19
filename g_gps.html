@@ -11,14 +11,15 @@
         :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-dark); color: var(--hrc-white); font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
         #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
-      #canvas {
-    position: fixed; /* absolute から変更 */
+#canvas {
+    position: fixed;
     left: 0;
-    bottom: 60px;    /* ボタンの高さ分だけ底から上げる */
+    bottom: 60px; /* ボタンのすぐ上 */
     width: 100%;
-    height: 200px;   /* タコメーターに必要な高さだけ確保する */
-    z-index: 5;
-    pointer-events: none; /* 下のボタン操作を邪魔しない */
+    height: 150px; /* 高さを限定して、中央まで上がらないようにする */
+    z-index: 10;
+    pointer-events: none;
+    background: transparent;
 }
 
         .main-ui-container {
@@ -52,7 +53,7 @@
 <body>
 
 <div id="dashboard">
-    <canvas id="canvas"></canvas>
+ <canvas id="canvas" width="800" height="300"></canvas>
     <div class="main-ui-container">
         <div id="info-overlay">
             <div id="rpm_val">0</div>
@@ -320,34 +321,27 @@ function tick() {
 
 // --- 4. 描画・UI制御 ---
 function drawTacho(rpm) {
-    if (!canvas.width || !canvas.height) return;
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
     
-    // キャンバスの純粋な解像度（内部サイズ）を使用
-    const cw = canvas.width;
-    const ch = canvas.height;
+    // キャンバス内部の固定サイズを使用
+    const cw = 800;
+    const ch = 300;
     
-    // 描画をクリア
     ctx.clearRect(0, 0, cw, ch);
     
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- 【重要】デバイスの画面高さを無視し、キャンバスの「左下」を(0,0)とする ---
-    
-    // 1. 半径を120pxに固定（数字を近づけるため）
-    const rad = 120; 
-    
-    // 2. 描き始めを「キャンバスの左下ギリギリ」に固定
-    // これにより、iPhoneでもAQUOSでも「枠の左下」から始まります
-    const sX = 20; 
-    const bY = ch - 20; // キャンバスの底から20px上
-
-    // 3. 水平ラインの高さを計算（底辺から半径分上がった位置）
-    const hY = bY - rad; 
+    // --- すべてを「px」で固定（画面サイズに依存させない） ---
+    const rad = 180;      // 半径
+    const sX = 30;       // 左端からの開始位置
+    const bY = ch - 20;  // キャンバス内での底辺
+    const hY = bY - rad; // 水平ラインの高さ（SPEEDの上を通る高さ）
 
     const curveEnd = 25; 
-    const barWidth = 8; 
-    const barLength = 30; 
+    const barWidth = 10; // 太さをしっかり出す
+    const barLength = 40; 
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
@@ -359,8 +353,8 @@ function drawTacho(rpm) {
             y = hY + rad + Math.sin(ang) * rad;
         } else {
             prog = (i - curveEnd) / (segments - curveEnd);
-            // 横幅いっぱいに伸ばす
-            x = (sX + rad) + (prog * (cw * 0.95 - (sX + rad)));
+            // 右端（14の数字）までしっかり伸ばす
+            x = (sX + rad) + (prog * (cw - (sX + rad + 40)));
             y = hY;
             ang = 1.5 * Math.PI;
         }
@@ -369,14 +363,12 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic 900 24px Arial`; 
+            ctx.font = "italic 900 35px Arial"; // 数字を大きく
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 【解決策】数字をバーの「真上」に重ねる（距離 0.95）
-            // これで、数字が出てもバーの位置（hY）は絶対に動きません。
-            const labelDist = rad * 0.95; 
-            
+            // 数字をバーに極限まで近づける (0.9倍)
+            const labelDist = rad * 0.9; 
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
             
@@ -387,17 +379,16 @@ function drawTacho(rpm) {
         // --- バー（目盛り）の描画 ---
         if (i < segments) {
             const currentRpmVal = (i / segments) * 14000;
-            ctx.fillStyle = (i < active) ? (currentRpmVal >= 12500 ? "var(--hrc-red)" : (currentRpmVal >= 8000 ? "var(--hrc-blue)" : "#FFF")) : "#222";
+            ctx.fillStyle = (i < active) ? 
+                (currentRpmVal >= 12500 ? "#ff0000" : (currentRpmVal >= 8000 ? "#0000ff" : "#ffffff")) : "#222";
 
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // 常に太さ 8px で固定描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
     }
-    document.getElementById('rpm_val').textContent = Math.floor(rpm);
 }
 
 function updateButtonColors() {
