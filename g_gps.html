@@ -344,16 +344,15 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- レイアウト調整 ---
-    // 【解決：開始を右に寄せる】sideMarginを大きくして、数値との被りを回避
-    const sideMargin = 80;   
-    const topMargin = 65;    
+    // --- レイアウト調整：開始位置を少し左へ (80 -> 50) ---
+    const sideMargin = 50;   // 左端からの距離を50pxに（ここから立ち上がります）
+    const topMargin = 65;    // SPEEDの上を通る高さ
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
 
-    // R（半径）を調整して、立ち上がりをよりタイトに
-    const rad = 85; 
-    const rLimit = w; // 右端いっぱい
+    // R（半径）を少しコンパクトにして、左側で早めに曲げます
+    const rad = 90; 
+    const rLimit = w; // 右端いっぱいまで突き抜け
     const vLimit = topMargin + rad; 
 
     // 距離計算
@@ -373,15 +372,15 @@ function drawTacho(rpm) {
         c.lineTo(rLimit, topMargin);
     }
 
-    // 1. 背景
+    // 1. 背景（グレー）
     ctx.save();
     createPath(ctx);
-    ctx.strokeStyle = "rgba(34, 34, 34, 0.8)"; // 背面に回るので少し透過させてもOK
+    ctx.strokeStyle = "rgba(40, 40, 40, 0.7)"; // 少し透けさせて背面の質感を出す
     ctx.lineWidth = barWeight;
     ctx.stroke();
     ctx.restore();
 
-    // 2. バー（到達分）
+    // 2. バー（到達分：白・青・赤）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
@@ -394,35 +393,35 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 数値（ラベル）：バーの内側に配置して重なりを完全に回避
-    ctx.font = "italic 900 22px Arial";
+    // 3. 数値（ラベル）：バーに被らないよう外側に配置
+    ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
-    ctx.fillStyle = "#888"; 
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#666"; 
 
-    // offsetをマイナスにするとバーの「内側（右下側）」に数字が配置されます
-    // 重なりがひどい場合は、この数値を調整してください
+    // バーからの距離。重なる場合はここを 45〜50 の間で微調整してください
     const offset = 45; 
 
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.12) { // 垂直
+        if (prog < 0.1) { // 0-1 (垂直)
             lx = sideMargin - offset;
-            ly = footerHeight - (prog / 0.12) * vLen;
-        } else if (prog < 0.4) { // 円弧
-            const p = (prog - 0.12) / 0.28;
+            ly = footerHeight - (prog / 0.1) * vLen;
+        } else if (prog < 0.35) { // 2-5 (円弧)
+            const p = (prog - 0.1) / 0.25;
             const theta = Math.PI + (p * Math.PI / 2);
-            // バーの外側ではなく「内側」を通るように計算
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { // 直線
-            const p = (prog - 0.4) / 0.6;
-            lx = (sideMargin + rad) + p * (w - 25 - (sideMargin + rad));
+        } else { // 6-14 (直線)
+            const p = (prog - 0.35) / 0.65;
+            lx = (sideMargin + rad) + p * (w - 20 - (sideMargin + rad));
             ly = topMargin - offset;
         }
         
-        const finalX = Math.max(20, Math.min(w - 20, lx));
+        // 画面端の数値を画面内に押し戻す
+        const finalX = Math.max(15, Math.min(w - 15, lx));
         ctx.fillText(i, finalX, ly);
     }
 }
