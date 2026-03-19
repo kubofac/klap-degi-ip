@@ -317,46 +317,53 @@ function drawTacho(rpm) {
     const w = canvas.width;
     const h = canvas.height;
     
-    // 画面幅に応じてセグメント数とカーブの比率を調整
+    // 画面サイズに応じたレスポンシブな基本設定
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
     
-    // iPhone 8のような幅の狭い端末でも歪まないよう計算
-    const sX = w * 0.05; // 左余白5%
-    const hY = 80;       // 上部位置
-    const bY = h - 20;   // 下部位置
-    const rad = Math.min(bY - hY, w * 0.25); // 半径が大きくなりすぎないよう制限
+    // 画面左下から開始するためのオフセット（wの5%地点）
+    const sX = w * 0.05; 
+    // 上部（水平ライン）の高さ
+    const hY = h * 0.25; 
+    // 下部（カーブ開始）の高さ
+    const bY = h * 0.85; 
     
-    // カーブが終わるインデックスを画面幅に合わせて調整（横が狭いほどカーブを小さく）
-    const curveEnd = Math.floor(segments * (rad / (w * 0.8))); 
+    // 半径を画面の高さに合わせて動的に決定
+    const rad = bY - hY; 
+    
+    // カーブセクションの割合（iPhone8でもAQUOSでも一定の形状を保つ）
+    const curveEnd = 30; 
 
-    // セグメントの太さを画面幅に合わせて可変にする (iPhone 8対策)
-    const barWidth = Math.max(2, w / 150); 
+    // ★重要: バーの太さを画面幅の 0.6% に固定（これで太すぎ・細すぎを防ぐ）
+    const barWidth = w * 0.006; 
+    // バーの長さを半径の 25% に固定
+    const barLength = rad * 0.25;
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
         
         if (i <= curveEnd) {
-            // カーブセクション
+            // カーブ：画面左下から左上へ
             prog = i / curveEnd;
             ang = Math.PI + (prog * (Math.PI / 2));
             x = sX + rad + Math.cos(ang) * rad;
             y = hY + rad + Math.sin(ang) * rad;
         } else {
-            // 直線セクション
+            // 直線：左上から右へ
             prog = (i - curveEnd) / (segments - curveEnd);
-            x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
+            x = (sX + rad) + (prog * (w * 0.92 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
         }
 
-        // 数字ラベルの描画
+        // ラベル（数字）の描画
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic bold ${Math.max(14, h * 0.03)}px Arial`; // フォントサイズも可変
+            // フォントサイズも画面高に合わせて可変
+            ctx.font = `italic bold ${h * 0.06}px Arial`; 
             ctx.textAlign = "center";
-            // ラベルの位置を少し外側に
+            // 数字をバーの少し外側に配置
             const labelDist = rad * 0.45;
             ctx.fillText(
                 Math.round((i / segments) * 14), 
@@ -380,8 +387,8 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // バーのサイズを画面に合わせて微調整
-            ctx.fillRect(-barWidth, -rad * 0.2, barWidth * 2, rad * 0.4);
+            // バーの形状を [中心から左右にbarWidth, 上下にbarLength] で描画
+            ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
     }
@@ -456,16 +463,23 @@ document.getElementById('reloadBtn').onclick = () => {
     } else { location.reload(); }
 };
 
-window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight - 60; };
-window.onload = () => { 
-    window.dispatchEvent(new Event('resize')); 
-    const p1a = localStorage.getItem('startLineP1Lat');
-    if (p1a) {
-        LAP_LINE_P1 = { lat: parseFloat(p1a), lon: parseFloat(localStorage.getItem('startLineP1Lon')) };
-        LAP_LINE_P2 = { lat: parseFloat(localStorage.getItem('startLineP2Lat')), lon: parseFloat(localStorage.getItem('startLineP2Lon')) };
-        pulseCount = parseInt(localStorage.getItem('pl1')) || 1;
-    }
-    (function r(){ drawTacho(currentRPM); requestAnimationFrame(r); })(); 
+window.onresize = () => {
+    // ディスプレイのピクセル密度（2倍、3倍など）を取得
+    const dpr = window.devicePixelRatio || 1;
+    // 表示サイズ
+    const displayWidth = window.innerWidth;
+    const displayHeight = window.innerHeight - 60;
+    
+    // キャンバスの実解像度を調整（ボケ防止）
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    
+    // スケールを調整して座標計算を楽にする
+    ctx.scale(dpr, dpr);
+    
+    // CSS上のサイズを固定
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
 };
 </script>
 </body>
