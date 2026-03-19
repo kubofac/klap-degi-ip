@@ -331,57 +331,89 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) で寸詰まりを「物理的に」防ぐ設定 ---
-    const footerHeight = 60;
-    const sideMargin = 45;   // 左に寄せて右のスペースを稼ぐ
-    const topMargin = 70;    // 上に寄せて垂直距離を短くする
+    // --- iPhone 8 (375px) 黄金バランス設定 ---
+    const footerHeight = 65;
+    const sideMargin = 55;   // 数字の「0」用のスペース
+    const topMargin = 85;    // 数字の「14」用のスペース
     
-    // Rを「100」に絞ることで、左側でサッと曲げきり、直線を長く確保します
-    const rad = 100; 
+    // 【滑らかさの鍵】半径を「140」に。
+    // これにより、画面の左端付近から中央付近まで使って「ゆったり」曲がります。
+    const rad = 140; 
     const barWeight = 45; 
 
-    // 1. メーターの軌道パス
-    const path = new Path2D();
-    path.moveTo(sideMargin, h - footerHeight);
-    
-    // 【重要】垂直区間を「短く」して、すぐRに入る設定
-    const verticalLimit = topMargin + rad;
-    path.lineTo(sideMargin, verticalLimit);
-    
-    // 円弧
-    path.arc(sideMargin + rad, verticalLimit, rad, Math.PI, Math.PI * 1.5);
-    
-    // 水平（右端まで。w - 30でギリギリまで伸ばす）
-    const rightLimit = w - 30;
-    path.lineTo(rightLimit, topMargin); 
+    // 垂直が終わる高さ（ここを少し高めにすると、さらにRが綺麗に見えます）
+    const vLimit = topMargin + rad; 
+    const rLimit = w - 40; // 右端
+
+    // 1. 全体の長さを計算
+    const vLen = (h - footerHeight) - vLimit; 
+    const cLen = (Math.PI * rad) / 2;                 
+    const hLen = rLimit - (sideMargin + rad);         
+    const totalLen = vLen + cLen + hLen;
+    const activeLen = (rpm / 14000) * totalLen;
+
+    function createPath(c) {
+        c.beginPath();
+        c.moveTo(sideMargin, h - footerHeight);
+        c.lineTo(sideMargin, vLimit);
+        // 優雅な弧を描く
+        c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
+        c.lineTo(rLimit, topMargin);
+    }
 
     // 2. 背景（未到達：濃いグレー）
-    ctx.beginPath();
+    ctx.save();
+    createPath(ctx);
     ctx.strokeStyle = "#222222"; 
     ctx.lineWidth = barWeight;
     ctx.lineCap = "butt";
-    ctx.stroke(path);
+    ctx.stroke();
+    ctx.restore();
 
     // 3. 回転数バー（到達部分の色分け）
-    const vLen = h - footerHeight - verticalLimit; 
-    const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rightLimit - (sideMargin + rad);         
-    const totalLength = vLen + cLen + hLen;
-    const activeLength = (rpm / 14000) * totalLength;
-
     ctx.save();
-    ctx.setLineDash([activeLength, totalLength]);
+    createPath(ctx);
+    ctx.lineWidth = barWeight;
+    ctx.lineCap = "butt";
+    ctx.setLineDash([activeLen, totalLen]);
     
-    // 色分けロジック
     if (rpm >= 11000) ctx.strokeStyle = "#FF0000";
     else if (rpm >= 6000) ctx.strokeStyle = "#0055FF";
     else ctx.strokeStyle = "#FFFFFF";
     
-    ctx.stroke(path);
+    ctx.stroke();
     ctx.restore();
 
     // 4. 数値（ラベル）描画
-    drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, verticalLimit, rightLimit, rpm);
+    ctx.font = "italic 900 28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const offset = 60; 
+
+    for (let i = 0; i <= 14; i++) {
+        const targetRpm = i * 1000;
+        const prog = i / 14;
+        let lx, ly;
+
+        // 【滑らかな配分】
+        // 0-2: 垂直 / 3-7: 円弧 / 8-14: 直線
+        if (prog < 0.2) { 
+            lx = sideMargin - offset;
+            ly = (h - footerHeight) - (prog / 0.2) * vLen;
+        } else if (prog < 0.5) { 
+            const p = (prog - 0.2) / 0.3;
+            const theta = Math.PI + (p * Math.PI / 2);
+            lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
+            ly = vLimit + Math.sin(theta) * (rad + offset);
+        } else { 
+            const p = (prog - 0.5) / 0.5;
+            lx = (sideMargin + rad) + p * hLen;
+            ly = topMargin - offset;
+        }
+
+        ctx.fillStyle = rpm >= targetRpm ? "#FFFFFF" : "#444444";
+        ctx.fillText(i, Math.max(25, Math.min(w - 25, lx)), Math.max(30, ly));
+    }
 }
 
 function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, verticalLimit, rightLimit, rpm) {
