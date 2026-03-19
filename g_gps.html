@@ -315,31 +315,31 @@ function drawTacho(rpm) {
     if (!canvas.width || !canvas.height) return;
     
     const w = window.innerWidth;
-    const h = window.innerHeight - 45; // footerの高さを正確に引く
+    const h = window.innerHeight - 45; // footerの高さを引く
     
     ctx.clearRect(0, 0, w, h);
     
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
+
+    // --- 【重要】px単位の固定デザイン（デバイス差を無視する） ---
     
-    // --- 【重要】レイアウトを「下端」からの絶対距離で固定 ---
+    // 1. 半径を iPhone 8 でもはみ出さない 140px に固定
+    const rad = 140; 
     
-    // 1. 半径を「数値がはみ出さないサイズ」に固定 (iPhone 8の横幅に合わせる)
-    const rad = Math.min(w * 0.35, 180); 
-    
-    // 2. 開始位置を「画面の左下隅」に完全に固定
-    const sX = 10;  // 左端から10px
-    const bY = h - 10; // 下端(footerのすぐ上)から10px
-    
-    // 3. 上部の水平ライン高さ（下端から半径分上がった場所）
-    // これにより、SPEED等の枠の真上を通るように調整
+    // 2. 開始位置を「左端から 10px」「footerのすぐ上」に固定
+    const sX = 10; 
+    const bY = h - 5; // ボタンの真上（5pxの隙間）
+
+    // 3. 水平ラインの高さを固定
+    // これで SPEED パネルの真上付近を通るようになります
     const hY = bY - rad; 
 
-    const curveEnd = 25; // カーブを少し急にして、早く直線に移るように調整
+    const curveEnd = 30; 
 
-    // 4. バーの太さと長さ（AQUOSでも負けない太さ）
-    const barWidth = 7; 
-    const barLength = rad * 0.22; 
+    // 4. 太さを 8px に固定（dprでスケーリングされるので全端末で均一になります）
+    const barWidth = 8; 
+    const barLength = 35; // バーの長さも 35px に固定
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
@@ -351,7 +351,7 @@ function drawTacho(rpm) {
             y = hY + rad + Math.sin(ang) * rad;
         } else {
             prog = (i - curveEnd) / (segments - curveEnd);
-            // 右端までしっかり伸ばす
+            // 右端（SPEEDの横）で止まらないよう、画面幅の 95% まで伸ばす
             x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
@@ -361,19 +361,22 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            // 数字を少し大きく、太く
-            ctx.font = `italic 900 ${Math.round(rad * 0.25)}px Arial`; 
+            ctx.font = `italic 900 24px Arial`; // サイズも 24px 固定
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 【重要】数字とバーの間隔を極限まで詰める
-            // labelDist を rad * 0.9 にしてバーのすぐ内側に配置
-            const labelDist = rad * 0.88; 
+            // 【重要】数字をバーと重ねる（labelDist を半径と同じにする）
+            // 重なりすぎる場合は 0.95 くらいに微調整してください
+            const labelDist = rad * 0.98; 
             
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
             
-            ctx.fillText(Math.round((i / segments) * 14), lx, ly);
+            // 数字が画面外（左・下）にはみ出さないためのガード
+            const safeLx = Math.max(15, lx);
+            const safeLy = Math.min(h - 10, ly);
+            
+            ctx.fillText(Math.round((i / segments) * 14), safeLx, safeLy);
             ctx.restore();
         }
 
@@ -391,6 +394,7 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
+            // rect を描画（これが一番太さが安定します）
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
