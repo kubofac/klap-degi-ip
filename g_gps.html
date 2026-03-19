@@ -314,33 +314,32 @@ function tick() {
 function drawTacho(rpm) {
     if (!canvas.width || !canvas.height) return;
     
-    // CSSピクセル単位でのサイズ取得
     const w = window.innerWidth;
-    const h = window.innerHeight - 60; 
+    const h = window.innerHeight - 45; // footerの高さを正確に引く
     
     ctx.clearRect(0, 0, w, h);
     
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
     
-    // --- 【重要】配置の再定義 ---
+    // --- 【重要】レイアウトを「下端」からの絶対距離で固定 ---
     
-    // 1. 半径をさらに小さく（iPhone 8で14まで入れるため）
-    const rad = Math.min(w * 0.25, h * 0.35); 
+    // 1. 半径を「数値がはみ出さないサイズ」に固定 (iPhone 8の横幅に合わせる)
+    const rad = Math.min(w * 0.35, 180); 
     
-    // 2. 開始位置を「画面左端」に寄せる
-    // ラップ表示（右側）に被らないよう、左から20px、下から30pxの位置を起点にします
-    const sX = 20;  
-    const bY = h - 30; 
+    // 2. 開始位置を「画面の左下隅」に完全に固定
+    const sX = 10;  // 左端から10px
+    const bY = h - 10; // 下端(footerのすぐ上)から10px
     
-    // 3. 上部の水平ライン高さ
+    // 3. 上部の水平ライン高さ（下端から半径分上がった場所）
+    // これにより、SPEED等の枠の真上を通るように調整
     const hY = bY - rad; 
 
-    const curveEnd = 30; 
+    const curveEnd = 25; // カーブを少し急にして、早く直線に移るように調整
 
-    // 4. バーの太さと長さ（AQUOSで細くならないよう固定値を微増）
-    const barWidth = 6; 
-    const barLength = rad * 0.25; 
+    // 4. バーの太さと長さ（AQUOSでも負けない太さ）
+    const barWidth = 7; 
+    const barLength = rad * 0.22; 
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
@@ -352,7 +351,7 @@ function drawTacho(rpm) {
             y = hY + rad + Math.sin(ang) * rad;
         } else {
             prog = (i - curveEnd) / (segments - curveEnd);
-            // 横幅を 95% まで使い切るように設定
+            // 右端までしっかり伸ばす
             x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
@@ -362,13 +361,14 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic bold ${Math.round(rad * 0.22)}px Arial`; 
+            // 数字を少し大きく、太く
+            ctx.font = `italic 900 ${Math.round(rad * 0.25)}px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 【重要】数字とバーの間隔を詰める
-            // labelDist を rad * 0.85 にしてバーのすぐ内側に配置
-            const labelDist = rad * 0.85; 
+            // 【重要】数字とバーの間隔を極限まで詰める
+            // labelDist を rad * 0.9 にしてバーのすぐ内側に配置
+            const labelDist = rad * 0.88; 
             
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
@@ -385,7 +385,7 @@ function drawTacho(rpm) {
                 else if (currentRpmVal >= 8000) ctx.fillStyle = "var(--hrc-blue)";
                 else ctx.fillStyle = "#FFFFFF";
             } else {
-                ctx.fillStyle = "#222";
+                ctx.fillStyle = "#333";
             }
 
             ctx.save();
