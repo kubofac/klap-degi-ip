@@ -334,32 +334,34 @@ function drawTacho(rpm) {
     const active = Math.floor((rpm / 14000) * segments);
 
     // --- レイアウト設定 ---
-    const footerHeight = 70;  // ボタンエリアを避ける高さ
-    const sideMargin = 25;    // 左端の余白
-    const topMargin = 60;     // 上部（SPEED表示の上）の高さ
+    const footerHeight = 65;  // ボタンエリアを避ける高さ
     
-    // 楕円カーブの「丸み」の強さ（ここを大きくするとより緩やかなカーブになります）
-    const curveRadius = 120; 
+    // 【修正】数字を外側に置くため、画面端の余白（マージン）を大きく取る
+    const sideMargin = 45;    // 左端の余白（数字が入るスペース）
+    const topMargin = 55;     // 上部（SPEED表示の上）の高さ（数字が入るスペース）
+    
+    // 【修正】カーブの丸み（半径）を大きくして「緩やか」にする (120px -> 180px)
+    const curveRadius = 180; 
 
-    const barWidth = 8; 
-    const barLength = 35;
+    // 【修正】線を「極太」にする (8px -> 18px)
+    const barWidth = 18; 
+    const barLength = 35; // バー自体の長さ（厚み）
 
     for (let i = 0; i <= segments; i++) {
         const prog = i / segments;
         let x, y, ang;
 
-        // セグメントの位置によって「垂直」「カーブ」「水平」を分ける
-        // 全体の30%を垂直、20%をカーブ、残り50%を水平に割り当て
-        if (prog < 0.3) {
+        // 全体の割り当て：垂直 25%、カーブ 30%、水平 45% (カーブを長くして緩やかに)
+        if (prog < 0.25) {
             // 1. 【垂直部分】左下から上へ
-            const p = prog / 0.3;
+            const p = prog / 0.25;
             x = sideMargin;
             y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + curveRadius));
             ang = 0; // 右向きにバーを立てる
         } 
-        else if (prog < 0.5) {
-            // 2. 【楕円カーブ部分】左上を滑らかに曲がる
-            const p = (prog - 0.3) / 0.2;
+        else if (prog < 0.55) {
+            // 2. 【楕円カーブ部分】左上を緩やかに曲がる
+            const p = (prog - 0.25) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2); // 180度から270度へ
             x = sideMargin + curveRadius + Math.cos(theta) * curveRadius;
             y = (topMargin + curveRadius) + Math.sin(theta) * curveRadius;
@@ -367,32 +369,47 @@ function drawTacho(rpm) {
         } 
         else {
             // 3. 【水平部分】右上へ向かって真っ直ぐ
-            const p = (prog - 0.5) / 0.5;
-            x = (sideMargin + curveRadius) + p * (w * 0.95 - (sideMargin + curveRadius));
+            const p = (prog - 0.55) / 0.45;
+            // 画面の右端（96%）までしっかり伸ばす
+            x = (sideMargin + curveRadius) + p * (w * 0.96 - (sideMargin + curveRadius));
             y = topMargin;
             ang = Math.PI / 2; // 下向きにバーを立てる
         }
 
-        // --- 数字（ラベル）の描画 ---
+        // --- 【修正】数字（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
-            ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic 900 24px Arial`;
+            ctx.fillStyle = i < active ? "#fff" : "#666"; // 未到達時の数字を少し明るく
+            ctx.font = `italic 900 28px Arial`; // 数字を大きく太く
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 数字をバーの内側（重なるくらい）に密着させる
+            // 【重要】数字をバーの「外側」に配置する
             // 垂直・水平・カーブに合わせてオフセットを調整
             let lx = x, ly = y;
-            const offset = 30;
-            if (prog < 0.3) { lx += offset; }
-            else if (prog > 0.5) { ly += offset; }
+            const offset = 40; // バーの中心から数字までの距離
+            
+            if (prog < 0.25) {
+                // 垂直部分：バーの左側（画面外側）へ
+                lx -= offset; 
+            }
+            else if (prog > 0.55) {
+                // 水平部分：バーの上側（画面外側）へ
+                ly -= offset; 
+            }
             else { 
-                lx += Math.cos(ang + Math.PI/2) * -offset;
-                ly += Math.sin(ang + Math.PI/2) * -offset;
+                // カーブ部分：弧の外側へ
+                // theta（prog < 0.55のtheta）と同じ角度を使って外側に飛ばす
+                const theta = Math.PI + ((prog - 0.25) / 0.3 * Math.PI / 2);
+                lx = sideMargin + curveRadius + Math.cos(theta) * (curveRadius + offset);
+                ly = (topMargin + curveRadius) + Math.sin(theta) * (curveRadius + offset);
             }
             
-            ctx.fillText(Math.round((i / segments) * 14), lx, ly);
+            // 画面外（左端・上端）へのはみ出しガード
+            const safeLx = Math.max(15, lx);
+            const safeLy = Math.min(h - 15, ly);
+            
+            ctx.fillText(Math.round((i / segments) * 14), safeLx, safeLy);
             ctx.restore();
         }
 
@@ -405,6 +422,7 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang); 
+            // 常に太さ 18px で描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
