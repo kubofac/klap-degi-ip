@@ -331,59 +331,60 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- レイアウト設定（iPhone 8 & AQUOS 両対応） ---
+    // --- iPhone 8 (375px) で寸詰まりを「物理的に」防ぐ設定 ---
     const footerHeight = 60;
-    const sideMargin = 45;   
-    const topMargin = 70;    
-    const rad = 100;         // 左側でコンパクトに曲げる
+    const sideMargin = 45;   // 左に寄せて右のスペースを稼ぐ
+    const topMargin = 70;    // 上に寄せて垂直距離を短くする
+    
+    // Rを「100」に絞ることで、左側でサッと曲げきり、直線を長く確保します
+    const rad = 100; 
     const barWeight = 45; 
-    const vLimit = topMargin + rad; // 垂直が終わる高さ
-    const rLimit = w - 35;          // 右端の限界
 
-    // 1. 全体の長さを先に計算（色塗りのため）
-    const vLen = (h - footerHeight) - vLimit; 
-    const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rLimit - (sideMargin + rad);         
-    const totalLen = vLen + cLen + hLen;
-    const activeLen = (rpm / 14000) * totalLen;
+    // 1. メーターの軌道パス
+    const path = new Path2D();
+    path.moveTo(sideMargin, h - footerHeight);
+    
+    // 【重要】垂直区間を「短く」して、すぐRに入る設定
+    const verticalLimit = topMargin + rad;
+    path.lineTo(sideMargin, verticalLimit);
+    
+    // 円弧
+    path.arc(sideMargin + rad, verticalLimit, rad, Math.PI, Math.PI * 1.5);
+    
+    // 水平（右端まで。w - 30でギリギリまで伸ばす）
+    const rightLimit = w - 30;
+    path.lineTo(rightLimit, topMargin); 
 
-    // --- 共通のパス描画関数 ---
-    function createTachoPath(context) {
-        context.beginPath();
-        context.moveTo(sideMargin, h - footerHeight);
-        context.lineTo(sideMargin, vLimit);
-        context.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        context.lineTo(rLimit, topMargin);
-    }
-
-    // 2. 背景（未到達：濃いグレー）を描画
-    ctx.save();
-    createTachoPath(ctx);
+    // 2. 背景（未到達：濃いグレー）
+    ctx.beginPath();
     ctx.strokeStyle = "#222222"; 
     ctx.lineWidth = barWeight;
     ctx.lineCap = "butt";
-    ctx.stroke();
-    ctx.restore();
+    ctx.stroke(path);
 
-    // 3. 回転数バー（到達部分）を描画
+    // 3. 回転数バー（到達部分の色分け）
+    const vLen = h - footerHeight - verticalLimit; 
+    const cLen = (Math.PI * rad) / 2;                 
+    const hLen = rightLimit - (sideMargin + rad);         
+    const totalLength = vLen + cLen + hLen;
+    const activeLength = (rpm / 14000) * totalLength;
+
     ctx.save();
-    createTachoPath(ctx);
-    ctx.lineWidth = barWeight;
-    ctx.lineCap = "butt";
+    ctx.setLineDash([activeLength, totalLength]);
     
-    // 点線を利用して「現在の回転数」まで塗る
-    ctx.setLineDash([activeLen, totalLen]);
-    ctx.lineDashOffset = 0;
-
     // 色分けロジック
     if (rpm >= 11000) ctx.strokeStyle = "#FF0000";
     else if (rpm >= 6000) ctx.strokeStyle = "#0055FF";
     else ctx.strokeStyle = "#FFFFFF";
     
-    ctx.stroke();
+    ctx.stroke(path);
     ctx.restore();
 
     // 4. 数値（ラベル）描画
+    drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, verticalLimit, rightLimit, rpm);
+}
+
+function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, verticalLimit, rightLimit, rpm) {
     ctx.font = "italic 900 26px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -394,17 +395,18 @@ function drawTacho(rpm) {
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.15) { // 垂直
+        // 数値の配置も、新しい「短縮された垂直/R」に同期させる
+        if (prog < 0.15) { // 垂直（0〜2付近）
             lx = sideMargin - offset;
-            ly = (h - footerHeight) - (prog / 0.15) * vLen;
-        } else if (prog < 0.4) { // 円弧
+            ly = (h - footerHeight) - (prog / 0.15) * (h - footerHeight - verticalLimit);
+        } else if (prog < 0.4) { // 円弧（3〜7付近）
             const p = (prog - 0.15) / 0.25;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
-            ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { // 水平
+            ly = verticalLimit + Math.sin(theta) * (rad + offset);
+        } else { // 水平（8〜14）
             const p = (prog - 0.4) / 0.6;
-            lx = (sideMargin + rad) + p * hLen;
+            lx = (sideMargin + rad) + p * (rightLimit - (sideMargin + rad));
             ly = topMargin - offset;
         }
 
