@@ -344,25 +344,22 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- 【進化した動的R計算】 ---
-    // iPhone 8 (375px)  => rad ≒ 95  (直線距離を確保して右へ突き抜け)
-    // AQUOS (412px等)   => rad ≒ 130 (緩やかで美しい大きなカーブ)
-    // Xperia等 (430px+) => rad ≒ 145 (さらにダイナミックに)
-    
-    // 計算式：375pxを基準に、増えた幅の分だけRを大きく増幅させる
-    const baseW = 375;
-    const diff = Math.max(0, w - baseW);
-    const rad = 95 + (diff * 0.8); // 幅が10px増えるごとにRが8px大きくなる
+    // --- 【Rの最適化】 ---
+    // iPhone 8 (375px) 以下なら R=85 で固定。
+    // AQUOS (400px〜) なら徐々に緩やか（最大120）にする。
+    let rad = 85; 
+    if (w > 375) {
+        rad = Math.min(120, 85 + (w - 375) * 0.5);
+    }
 
     const sideMargin = 45;   
     const topMargin = 65;    
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
-
     const rLimit = w; 
     const vLimit = topMargin + rad; 
 
-    // 距離計算（動的なradに完全に追従）
+    // 各区間の長さを計算
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
     const hLen = rLimit - (sideMargin + rad); 
@@ -375,33 +372,60 @@ function drawTacho(rpm) {
         c.lineJoin = "round";
         c.moveTo(sideMargin, footerHeight);
         c.lineTo(sideMargin, vLimit);
-        // この弧(arc)が、AQUOSでは大きく、iPhoneではコンパクトになります
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
         c.lineTo(rLimit, topMargin);
     }
 
-    // 1. 背景
+    // 1. 背景（ベース）
     ctx.save();
     createPath(ctx);
-    ctx.strokeStyle = "rgba(40, 40, 40, 0.7)";
+    ctx.strokeStyle = "#222"; 
     ctx.lineWidth = barWeight;
     ctx.stroke();
     ctx.restore();
 
-    // 2. バー（到達分）
+    // 2. 【解決：白い線の解消】
+    // setLineDashではなく、クリッピング（切り抜き）を使って描画します。
+    // これにより、色の境界に隙間（白い線）が出る現象を物理的に防ぎます。
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
+    
+    // 現在の回転数までを「描画可能エリア」として切り抜く
     ctx.setLineDash([activeLen, totalLen]);
-    
-    if (rpm >= 11000) ctx.strokeStyle = "#FF0000";
-    else if (rpm >= 6000) ctx.strokeStyle = "#0055FF";
-    else ctx.strokeStyle = "#FFFFFF";
-    
-    ctx.stroke();
+    ctx.stroke(); 
+    ctx.clip(); // 以降、このラインの上しか塗れなくなる
+
+    // --- 色の塗り分け（重なり順に描画） ---
+    // 全体を白で塗る
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, w, h);
+
+    // 6000rpm以上の領域を青で上書き
+    if (rpm >= 6000) {
+        const blueStart = (vLen + cLen + hLen) * (6000 / 14000);
+        ctx.save();
+        ctx.setLineDash([totalLen, totalLen]); // 全線
+        ctx.lineDashOffset = -blueStart; // 6000の位置から開始
+        ctx.strokeStyle = "#0055FF";
+        ctx.lineWidth = barWeight + 2; // 隙間防止に少し太く
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // 11000rpm以上の領域を赤で上書き
+    if (rpm >= 11000) {
+        const redStart = (vLen + cLen + hLen) * (11000 / 14000);
+        ctx.save();
+        ctx.lineDashOffset = -redStart;
+        ctx.strokeStyle = "#FF0000";
+        ctx.lineWidth = barWeight + 4; 
+        ctx.stroke();
+        ctx.restore();
+    }
     ctx.restore();
 
-    // 3. 数値（ラベル）：動的なRにピタッと沿うように配置
+    // 3. 数値（ラベル）
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -411,7 +435,6 @@ function drawTacho(rpm) {
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
-
         if (prog < 0.1) {
             lx = sideMargin - offset;
             ly = footerHeight - (prog / 0.1) * vLen;
