@@ -10,24 +10,30 @@
      <link rel="manifest" href="/manifest.json">
     <style>
         :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
-        body, html {
+body, html {
     margin: 0;
     padding: 0;
     width: 100vw;
     height: 100vh;
+    background-color: var(--bg-dark);
+    color: var(--hrc-white);
+    font-family: 'Arial Black', sans-serif;
     overflow: hidden;
-    position: fixed;
+    position: fixed; /* 画面を固定 */
+    left: 0;
+    top: 0;
 }
-        #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
+
+/* 2. 【ここが重要】Canvasを親要素から「独立」させる */
 canvas {
-    /* 1カラム目の制約を無視して画面全体に広げる */
-    position: fixed; 
+    display: block;
+    position: fixed;    /* カラムの枠を無視して画面全体に対して配置 */
     top: 0;
     left: 0;
-    width: 100vw !important;
-    height: 100vh !important;
-    z-index: 999; /* 他の要素より前面に出す */
-    pointer-events: none; /* 下にあるボタンなどを操作可能にする */
+    width: 100vw !important;  /* 画面幅いっぱいに強制 */
+    height: 100vh !important; /* 画面高さいっぱいに強制 */
+    z-index: 100;       /* 他のUI（ボタン等）より背面なら低く、前面なら高く調整 */
+    pointer-events: none; /* Canvasの下にあるボタンを触れるようにする */
 }
         .main-ui-container {
             position: absolute; right: 15px; top: 90px; bottom: 50px;
