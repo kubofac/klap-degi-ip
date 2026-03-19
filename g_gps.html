@@ -10,16 +10,25 @@
      <link rel="manifest" href="/manifest.json">
     <style>
         :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-dark); color: var(--hrc-white); font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
-        #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
-#canvas {
-    position: fixed;
-    top: 0;
+        body, html {
+    margin: 0;
+    padding: 0;
+    width: 100vw;       /* 画面幅いっぱいを強制 */
+    height: 100vh;      /* 画面高さいっぱいを強制 */
+    background-color: var(--bg-dark);
+    color: var(--hrc-white);
+    font-family: 'Arial Black', sans-serif;
+    overflow: hidden;   /* スクロールバーによる「寸詰まり」を防止 */
+    position: fixed;    /* 画面を固定し、引っ張った時のバウンスを防ぐ */
     left: 0;
-    width: 100vw;
+    top: 0;
+}
+        #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
+canvas {
+    display: block;
+    width: 100vw;       /* キャンバス自体の表示サイズを画面全幅に */
     height: 100vh;
-    z-index: 5;
-    pointer-events: none;
+    touch-action: none; /* スマホのジェスチャー干渉を防止 */
 }
 
         .main-ui-container {
@@ -324,33 +333,36 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // 画面サイズを正確に取得
+    // 【解決策1】高精度な画面サイズ取得
+    const dpr = window.devicePixelRatio || 1;
     const w = window.innerWidth;
     const h = window.innerHeight;
-    canvas.width = w;
-    canvas.height = h;
+
+    // キャンバスの「物理サイズ」と「表示サイズ」をiPhoneに最適化
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.scale(dpr, dpr); // 描画座標を論理ピクセルに合わせる
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) 全幅走破ロジック ---
-    // 左端を20pxまで詰めて、右側への「助走」を最大化
-    const sideMargin = 20;   
-    const topMargin = 65;    
+    // --- iPhone 8 (375px) 右端突き抜け・高位置設定 ---
+    const sideMargin = 20;   // 左端（0, 1用）
+    const topMargin = 60;    // SPEED表示の上（かなり高い位置）
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
 
-    // 【解決の鍵】Rを画面幅の「22%」に。iPhone 8なら約82px。
-    // これにより、画面左側の早い段階で曲がりきり、右への直線を長く確保します。
-    const rad = w * 0.22; 
+    // 【解決策2】R（半径）を画面幅に連動させつつ、iPhone8でも右に余裕を作る
+    // 画面幅の20%に抑えることで、右側への「直線」を180px以上確保
+    const rad = w * 0.20; 
     
-    // 右端を「w - 5」に設定。ほぼ画面の右縁ギリギリまで線を引きます。
-    const rLimit = w - 5;   
+    // 【解決策3】右端(rLimit)を「w」そのものにする（突き抜けを保証）
+    const rLimit = w; 
     const vLimit = topMargin + rad; 
 
-    // 1. 各セクションの長さを計算
+    // パス計算
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rLimit - (sideMargin + rad); // これでiPhone 8でも150px以上の直線が確保されます
+    const hLen = rLimit - (sideMargin + rad); 
     const totalLen = vLen + cLen + hLen;
     const activeLen = (rpm / 14000) * totalLen;
 
@@ -361,10 +373,10 @@ function drawTacho(rpm) {
         c.moveTo(sideMargin, footerHeight);
         c.lineTo(sideMargin, vLimit);
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        c.lineTo(rLimit, topMargin); // 画面右端(w-5)まで到達
+        c.lineTo(rLimit, topMargin); // 画面の本当の右端(w)まで到達
     }
 
-    // 2. 背景（グレー）
+    // 背景
     ctx.save();
     createPath(ctx);
     ctx.strokeStyle = "#222222"; 
@@ -372,7 +384,7 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 回転数バー（色分け）
+    // バー（色分け）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
@@ -385,7 +397,7 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 4. 数値（ラベル）：常にグレー
+    // 数値ラベル
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -396,22 +408,21 @@ function drawTacho(rpm) {
         const prog = i / 14;
         let lx, ly;
 
-        // 配分：0-1(垂直) / 2-4(円弧) / 5-14(ロング直線)
-        if (prog < 0.08) { 
+        if (prog < 0.08) { // 垂直
             lx = sideMargin - offset;
             ly = footerHeight - (prog / 0.08) * vLen;
-        } else if (prog < 0.3) { 
-            const p = (prog - 0.08) / 0.22;
+        } else if (prog < 0.28) { // 円弧
+            const p = (prog - 0.08) / 0.2;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { 
-            const p = (prog - 0.3) / 0.7;
-            lx = (sideMargin + rad) + p * hLen;
+        } else { // 直線
+            const p = (prog - 0.28) / 0.72;
+            lx = (sideMargin + rad) + p * (rLimit - (sideMargin + rad));
             ly = topMargin - offset;
         }
         
-        // 画面外への突き抜けを防止（特に0と14）
+        // 数値が画面外へ消えないよう保護
         const finalX = Math.max(15, Math.min(w - 15, lx));
         ctx.fillText(i, finalX, ly);
     }
