@@ -334,37 +334,51 @@ function drawTacho(rpm) {
     const active = Math.floor((rpm / 14000) * segments);
 
     // --- 【重要】iPhone 8の幅(375px)に合わせた極小マージン設計 ---
+    はい、提示していただいたそのコードブロックを書き換えるのが正解です。
+
+iPhone 8で「寸詰まり（右が短い）」にならず、かつ「緩やかな楕円」に見せるためには、一律の curveRadius ではなく、横の半径（rx）と縦の半径（ry）を分ける 修正が必要です。
+
+以下のように書き換えてみてください。
+
+iPhone 8 最適化版：楕円カーブ・ロジック
+JavaScript
     const footerHeight = 60;  
-    const sideMargin = 45;    // 左端の数値をギリギリに寄せる
-    const topMargin = 70;     // 上端の数値をギリギリに寄せる
+    const sideMargin = 50;    // 左端の数値スペース
+    const topMargin = 75;     // 上端の数値スペース
     
-    // 半径を小さくして、左側でサッと曲がらせる（右への直線を長く確保）
-    const curveRadius = 160; 
+    // --- 【修正ポイント】半径を2つに分け、比率を調整 ---
+    const rx = 120; // 横の半径：これ以上大きいと右側が詰まります
+    const ry = 180; // 縦の半径：これを大きくすると「楕円らしい緩やかさ」が出ます
+    
     const barWidth = 42; 
 
     for (let i = 0; i <= segments; i++) {
         const prog = i / segments;
         let x, y, ang;
 
-        // 垂直 15%、カーブ 25%、水平 60% (水平を一番長くする)
-        if (prog < 0.15) {
-            const p = prog / 0.15;
+        // 比率の割り振り：垂直 20%、カーブ 30%、水平 50%
+        if (prog < 0.2) {
+            const p = prog / 0.2;
             x = sideMargin;
-            y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + curveRadius));
+            // 下端から(ry + topMargin)の地点まで垂直に上昇
+            y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + ry));
             ang = 0;
         } 
-        else if (prog < 0.4) {
-            const p = (prog - 0.15) / 0.25;
+        else if (prog < 0.5) {
+            const p = (prog - 0.2) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
-            x = sideMargin + curveRadius + Math.cos(theta) * curveRadius;
-            y = (topMargin + curveRadius) + Math.sin(theta) * curveRadius;
-            ang = (p * Math.PI / 2);
+            // 横rx、縦ryの楕円軌道
+            x = sideMargin + rx + Math.cos(theta) * rx;
+            y = (topMargin + ry) + Math.sin(theta) * ry;
+            
+            // バーの角度を楕円の接線に合わせる（重要：これで並びが綺麗になります）
+            ang = Math.atan2(Math.sin(theta) * rx, Math.cos(theta) * ry) + Math.PI / 2;
         } 
         else {
-            const p = (prog - 0.4) / 0.6;
-            // 右端の「14」がギリギリ残る位置（w - 30）まで伸ばす
-            const startX = sideMargin + curveRadius;
-            const endX = w - 30; 
+            const p = (prog - 0.5) / 0.5;
+            // 右端の「14」が残る位置（w - 40）までしっかり伸ばす
+            const startX = sideMargin + rx;
+            const endX = w - 40; 
             x = startX + p * (endX - startX);
             y = topMargin;
             ang = Math.PI / 2;
