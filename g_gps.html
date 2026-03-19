@@ -339,35 +339,33 @@ function drawTacho(rpm) {
     const sideMargin = 50;    
     const topMargin = 75;     
     
-    // 半径を2つに分離（iPhone 8の寸詰まり防止）
-    const rx = 120; // 横の丸み
-    const ry = 180; // 縦の丸み
+    // 【修正】rxを大きくして、カーブの終わり（直線の始まり）を右に寄せます
+    const rx = 150; // 120から150へ（これでカーブが右まで伸びます）
+    const ry = 180; 
     
-    const barWidth = 42; 
+    const barWidth = 42; // これを全区間で厳守します
 
     for (let i = 0; i <= segments; i++) {
         const prog = i / segments;
-        let x, y, ang;
+        let x, y, ang, isCurve = false;
 
         // 1. 軌道の計算
         if (prog < 0.2) {
-            // 垂直
             const p = prog / 0.2;
             x = sideMargin;
             y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + ry));
             ang = 0;
         } 
         else if (prog < 0.5) {
-            // 楕円カーブ
+            isCurve = true;
             const p = (prog - 0.2) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
             x = sideMargin + rx + Math.cos(theta) * rx;
             y = (topMargin + ry) + Math.sin(theta) * ry;
-            // 角度を楕円の接線に合わせる
+            // 角度計算
             ang = Math.atan2(Math.sin(theta) * rx, Math.cos(theta) * ry) + Math.PI / 2;
         } 
         else {
-            // 水平
             const p = (prog - 0.5) / 0.5;
             const startX = sideMargin + rx;
             const endX = w - 40; 
@@ -386,7 +384,7 @@ function drawTacho(rpm) {
             
             let lx = x, ly = y;
             const num = Math.round((i / segments) * 14);
-            const offset = 50; 
+            const offset = 55; 
             
             if (prog < 0.2) {
                 lx -= offset; 
@@ -395,20 +393,16 @@ function drawTacho(rpm) {
                 ly -= offset; 
             }
             else { 
-                // 【修正箇所】curveRadiusを rx, ry に置き換え
                 const p = (prog - 0.2) / 0.3;
                 const theta = Math.PI + (p * Math.PI / 2);
                 lx = sideMargin + rx + Math.cos(theta) * (rx + offset);
                 ly = (topMargin + ry) + Math.sin(theta) * (ry + offset);
             }
-            
-            const finalLx = Math.min(w - 20, Math.max(20, lx));
-            const finalLy = Math.max(25, ly);
-            ctx.fillText(num, finalLx, finalLy);
+            ctx.fillText(num, Math.min(w - 20, Math.max(20, lx)), Math.max(25, ly));
             ctx.restore();
         }
 
-        // --- 3. バーの描画 ---
+        // --- 3. バーの描画（太さの補正） ---
         if (i < segments) {
             const val = (i / segments) * 14000;
             ctx.fillStyle = (i < active) ? 
@@ -417,6 +411,9 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang); 
+            
+            // 【重要】楕円カーブで太さが変わらないよう、描画サイズを固定
+            // 横幅 barWidth(42px), 厚み 50px
             ctx.fillRect(-barWidth / 2, -25, barWidth, 50);
             ctx.restore();
         }
