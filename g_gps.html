@@ -331,42 +331,32 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) 完全同期設定 ---
+    // --- レイアウト設定（iPhone 8 & AQUOS 黄金比） ---
     const footerHeight = 65;
-    const sideMargin = 50;   // 左端（0, 1用）
-    const topMargin = 85;    // 上端（14用）
-    
-    // 滑らかな円弧を維持
-    const rad = 140; 
+    const sideMargin = 50;   
+    const topMargin = 85;    
+    const rad = 140; // 滑らかなR
     const barWeight = 45; 
 
-    // 【重要】右端のターゲットを画面幅(w)から逆算して固定
-    const rLimit = w - 30; // 右端から30pxの位置（14の数字の真下）
+    const rLimit = w - 40; // 右端のターゲット（iPhone 8でも確実に届く）
     const vLimit = topMargin + rad; 
 
-    // 1. 全体の長さを計算
+    // 1. パスの長さを計算
     const vLen = (h - footerHeight) - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rLimit - (sideMargin + rad); // ここがマイナスにならないよう制御
-    
-    // もし iPhone 8 で hLen が短すぎる場合は rad を自動で微調整する安全装置
-    const adjustedRad = (sideMargin + rad > rLimit - 20) ? (rLimit - sideMargin - 20) : rad;
-    const adjustedVLimit = topMargin + adjustedRad;
-
+    const hLen = rLimit - (sideMargin + rad);         
     const totalLen = vLen + cLen + hLen;
     const activeLen = (rpm / 14000) * totalLen;
 
     function createPath(c) {
         c.beginPath();
         c.moveTo(sideMargin, h - footerHeight);
-        c.lineTo(sideMargin, adjustedVLimit);
-        // 円弧：開始(sideMargin), 終了(sideMargin + adjustedRad)
-        c.arc(sideMargin + adjustedRad, adjustedVLimit, adjustedRad, Math.PI, Math.PI * 1.5);
-        // 直線：終了点 rLimit まで確実に引く
+        c.lineTo(sideMargin, vLimit);
+        c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
         c.lineTo(rLimit, topMargin);
     }
 
-    // 2. 背景（濃いグレー）
+    // 2. 背景（未到達：濃いグレー）
     ctx.save();
     createPath(ctx);
     ctx.strokeStyle = "#222222"; 
@@ -375,13 +365,14 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 回転数バー
+    // 3. 回転数バー（到達部分：指定の色分け）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
     ctx.lineCap = "butt";
     ctx.setLineDash([activeLen, totalLen]);
     
+    // 色分け：常用(白) / パワーバンド(青) / レブリミット(赤)
     if (rpm >= 11000) ctx.strokeStyle = "#FF0000";
     else if (rpm >= 6000) ctx.strokeStyle = "#0055FF";
     else ctx.strokeStyle = "#FFFFFF";
@@ -390,9 +381,40 @@ function drawTacho(rpm) {
     ctx.restore();
 
     // 4. 数値（ラベル）描画
-    drawLabels(ctx, w, h, sideMargin, topMargin, adjustedRad, footerHeight, adjustedVLimit, rLimit, rpm);
+    // 【修正】数字の色を rpm に依存させず、常に一定のグレーに固定
+    drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, vLimit, rLimit);
 }
 
+function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, vLimit, rLimit) {
+    ctx.font = "italic 900 28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const offset = 60; 
+
+    // 数字は常にこの色（落ち着いたグレー）
+    ctx.fillStyle = "#555555"; 
+
+    for (let i = 0; i <= 14; i++) {
+        const prog = i / 14;
+        let lx, ly;
+
+        if (prog < 0.2) { 
+            lx = sideMargin - offset;
+            ly = (h - footerHeight) - (prog / 0.2) * ((h - footerHeight) - vLimit);
+        } else if (prog < 0.5) { 
+            const p = (prog - 0.2) / 0.3;
+            const theta = Math.PI + (p * Math.PI / 2);
+            lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
+            ly = vLimit + Math.sin(theta) * (rad + offset);
+        } else { 
+            const p = (prog - 0.5) / 0.5;
+            lx = (sideMargin + rad) + p * (rLimit - (sideMargin + rad));
+            ly = topMargin - offset;
+        }
+
+        ctx.fillText(i, Math.max(25, Math.min(w - 25, lx)), Math.max(30, ly));
+    }
+}
 function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, vLimit, rLimit, rpm) {
     ctx.font = "italic 900 28px Arial";
     ctx.textAlign = "center";
