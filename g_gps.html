@@ -344,18 +344,22 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- レイアウト調整：開始位置を少し左へ (80 -> 50) ---
-    const sideMargin = 50;   // 左端からの距離を50pxに（ここから立ち上がります）
-    const topMargin = 65;    // SPEEDの上を通る高さ
+    // --- 【動的R計算ロジック】 ---
+    // 画面幅が広い（AQUOSなど）ほど、Rを大きくして緩やかにします。
+    // iPhone 8 (375px)  => rad ≒ 95 (突き抜け優先)
+    // AQUOS (412px等)   => rad ≒ 115 (優雅なカーブ)
+    // 大型スマホ (430px) => rad ≒ 125 
+    const rad = Math.min(130, w * 0.26 + 10); 
+
+    const sideMargin = 45;   // 開始位置（少し左へ戻しました）
+    const topMargin = 65;    
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
 
-    // R（半径）を少しコンパクトにして、左側で早めに曲げます
-    const rad = 90; 
-    const rLimit = w; // 右端いっぱいまで突き抜け
+    const rLimit = w;        // 右端いっぱい
     const vLimit = topMargin + rad; 
 
-    // 距離計算
+    // 距離計算（動的なradに基づいて再計算されるため、常に右端まで届きます）
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
     const hLen = rLimit - (sideMargin + rad); 
@@ -372,15 +376,15 @@ function drawTacho(rpm) {
         c.lineTo(rLimit, topMargin);
     }
 
-    // 1. 背景（グレー）
+    // 1. 背景
     ctx.save();
     createPath(ctx);
-    ctx.strokeStyle = "rgba(40, 40, 40, 0.7)"; // 少し透けさせて背面の質感を出す
+    ctx.strokeStyle = "rgba(40, 40, 40, 0.7)";
     ctx.lineWidth = barWeight;
     ctx.stroke();
     ctx.restore();
 
-    // 2. バー（到達分：白・青・赤）
+    // 2. バー（到達分）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
@@ -393,36 +397,31 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 数値（ラベル）：バーに被らないよう外側に配置
+    // 3. 数値（ラベル）：動的なradに合わせて配置も自動計算
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#666"; 
-
-    // バーからの距離。重なる場合はここを 45〜50 の間で微調整してください
     const offset = 45; 
 
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.1) { // 0-1 (垂直)
+        if (prog < 0.1) {
             lx = sideMargin - offset;
             ly = footerHeight - (prog / 0.1) * vLen;
-        } else if (prog < 0.35) { // 2-5 (円弧)
+        } else if (prog < 0.35) {
             const p = (prog - 0.1) / 0.25;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { // 6-14 (直線)
+        } else {
             const p = (prog - 0.35) / 0.65;
             lx = (sideMargin + rad) + p * (w - 20 - (sideMargin + rad));
             ly = topMargin - offset;
         }
-        
-        // 画面端の数値を画面内に押し戻す
-        const finalX = Math.max(15, Math.min(w - 15, lx));
-        ctx.fillText(i, finalX, ly);
+        ctx.fillText(i, Math.max(15, Math.min(w - 15, lx)), ly);
     }
 }
 function updateButtonColors() {
