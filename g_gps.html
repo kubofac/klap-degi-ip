@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -333,15 +334,14 @@ function drawTacho(rpm) {
     const segments = 100;
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- 【重要】iPhone 8の幅(375px)に合わせた極小マージン設計 ---
-    
+    // --- レイアウト設定 ---
     const footerHeight = 60;  
-    const sideMargin = 50;    // 左端の数値スペース
-    const topMargin = 75;     // 上端の数値スペース
+    const sideMargin = 50;    
+    const topMargin = 75;     
     
-    // --- 【修正ポイント】半径を2つに分け、比率を調整 ---
-    const rx = 120; // 横の半径：これ以上大きいと右側が詰まります
-    const ry = 180; // 縦の半径：これを大きくすると「楕円らしい緩やかさ」が出ます
+    // 半径を2つに分離（iPhone 8の寸詰まり防止）
+    const rx = 120; // 横の丸み
+    const ry = 180; // 縦の丸み
     
     const barWidth = 42; 
 
@@ -349,27 +349,26 @@ function drawTacho(rpm) {
         const prog = i / segments;
         let x, y, ang;
 
-        // 比率の割り振り：垂直 20%、カーブ 30%、水平 50%
+        // 1. 軌道の計算
         if (prog < 0.2) {
+            // 垂直
             const p = prog / 0.2;
             x = sideMargin;
-            // 下端から(ry + topMargin)の地点まで垂直に上昇
             y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + ry));
             ang = 0;
         } 
         else if (prog < 0.5) {
+            // 楕円カーブ
             const p = (prog - 0.2) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
-            // 横rx、縦ryの楕円軌道
             x = sideMargin + rx + Math.cos(theta) * rx;
             y = (topMargin + ry) + Math.sin(theta) * ry;
-            
-            // バーの角度を楕円の接線に合わせる（重要：これで並びが綺麗になります）
+            // 角度を楕円の接線に合わせる
             ang = Math.atan2(Math.sin(theta) * rx, Math.cos(theta) * ry) + Math.PI / 2;
         } 
         else {
+            // 水平
             const p = (prog - 0.5) / 0.5;
-            // 右端の「14」が残る位置（w - 40）までしっかり伸ばす
             const startX = sideMargin + rx;
             const endX = w - 40; 
             x = startX + p * (endX - startX);
@@ -377,7 +376,7 @@ function drawTacho(rpm) {
             ang = Math.PI / 2;
         }
 
-        // --- 数値（ラベル）の描画：すべて「外側」 ---
+        // --- 2. 数値（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
@@ -387,29 +386,29 @@ function drawTacho(rpm) {
             
             let lx = x, ly = y;
             const num = Math.round((i / segments) * 14);
-            const offset = 45; // 太いバーの外側へ
+            const offset = 50; 
             
-            if (prog < 0.15) {
+            if (prog < 0.2) {
                 lx -= offset; 
             }
-            else if (prog >= 0.4) {
+            else if (prog >= 0.5) {
                 ly -= offset; 
             }
             else { 
-                const theta = Math.PI + ((prog - 0.15) / 0.25 * Math.PI / 2);
-                lx = sideMargin + curveRadius + Math.cos(theta) * (curveRadius + offset);
-                ly = (topMargin + curveRadius) + Math.sin(theta) * (curveRadius + offset);
+                // 【修正箇所】curveRadiusを rx, ry に置き換え
+                const p = (prog - 0.2) / 0.3;
+                const theta = Math.PI + (p * Math.PI / 2);
+                lx = sideMargin + rx + Math.cos(theta) * (rx + offset);
+                ly = (topMargin + ry) + Math.sin(theta) * (ry + offset);
             }
             
-            // 画面端からはみ出さないよう最終調整
             const finalLx = Math.min(w - 20, Math.max(20, lx));
             const finalLy = Math.max(25, ly);
-            
             ctx.fillText(num, finalLx, finalLy);
             ctx.restore();
         }
 
-        // --- バーの描画 ---
+        // --- 3. バーの描画 ---
         if (i < segments) {
             const val = (i / segments) * 14000;
             ctx.fillStyle = (i < active) ? 
