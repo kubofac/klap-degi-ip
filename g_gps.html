@@ -325,64 +325,72 @@ function drawTacho(rpm) {
     
     const w = window.innerWidth;
     const h = window.innerHeight;
-    
-    // キャンバスのサイズを画面に合わせる
     canvas.width = w;
     canvas.height = h;
     
     ctx.clearRect(0, 0, w, h);
     
-    const segments = 75;
+    const segments = 80; 
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- 【超重要】高さを「下から」の絶対値で固定する ---
+    // --- レイアウト設定 ---
+    const footerHeight = 70;  // ボタンエリアを避ける高さ
+    const sideMargin = 25;    // 左端の余白
+    const topMargin = 60;     // 上部（SPEED表示の上）の高さ
     
-    // 1. 半径を少し小さくして、画面下部に凝縮させる (120px)
-    const rad = 120; 
-    
-    // 2. 起点を「画面の本当の底」から「ボタンの高さ(約60px) + 余裕(10px)」に固定
-    // これにより、iPhone 8でもAQUOSでも、ボタンのすぐ上になります
-    const footerHeight = 70; 
-    const bY = h - footerHeight; 
+    // 楕円カーブの「丸み」の強さ（ここを大きくするとより緩やかなカーブになります）
+    const curveRadius = 120; 
 
-    // 3. 水平ライン（直線部分）の高さを「下から(rad + footer)」の位置に固定
-    // これで画面中央まで浮かび上がるのを物理的に阻止します
-    const hY = bY - rad; 
-    
-    const sX = 20; // 左端の余白
-
-    const curveEnd = 25;
     const barWidth = 8; 
-    const barLength = 30;
+    const barLength = 35;
 
     for (let i = 0; i <= segments; i++) {
-        let x, y, ang, prog;
-        
-        if (i <= curveEnd) {
-            prog = i / curveEnd;
-            ang = Math.PI + (prog * (Math.PI / 2));
-            x = sX + rad + Math.cos(ang) * rad;
-            y = hY + rad + Math.sin(ang) * rad;
-        } else {
-            prog = (i - curveEnd) / (segments - curveEnd);
-            // 右端までしっかり伸ばす
-            x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
-            y = hY;
-            ang = 1.5 * Math.PI;
+        const prog = i / segments;
+        let x, y, ang;
+
+        // セグメントの位置によって「垂直」「カーブ」「水平」を分ける
+        // 全体の30%を垂直、20%をカーブ、残り50%を水平に割り当て
+        if (prog < 0.3) {
+            // 1. 【垂直部分】左下から上へ
+            const p = prog / 0.3;
+            x = sideMargin;
+            y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + curveRadius));
+            ang = 0; // 右向きにバーを立てる
+        } 
+        else if (prog < 0.5) {
+            // 2. 【楕円カーブ部分】左上を滑らかに曲がる
+            const p = (prog - 0.3) / 0.2;
+            const theta = Math.PI + (p * Math.PI / 2); // 180度から270度へ
+            x = sideMargin + curveRadius + Math.cos(theta) * curveRadius;
+            y = (topMargin + curveRadius) + Math.sin(theta) * curveRadius;
+            ang = (p * Math.PI / 2);
+        } 
+        else {
+            // 3. 【水平部分】右上へ向かって真っ直ぐ
+            const p = (prog - 0.5) / 0.5;
+            x = (sideMargin + curveRadius) + p * (w * 0.95 - (sideMargin + curveRadius));
+            y = topMargin;
+            ang = Math.PI / 2; // 下向きにバーを立てる
         }
 
         // --- 数字（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic 900 24px Arial`; 
+            ctx.font = `italic 900 24px Arial`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 数字をバーのすぐ内側（重なるくらい）に密着
-            const labelDist = rad * 0.92;
-            const lx = x + Math.cos(ang) * labelDist;
-            const ly = y + Math.sin(ang) * labelDist;
+            // 数字をバーの内側（重なるくらい）に密着させる
+            // 垂直・水平・カーブに合わせてオフセットを調整
+            let lx = x, ly = y;
+            const offset = 30;
+            if (prog < 0.3) { lx += offset; }
+            else if (prog > 0.5) { ly += offset; }
+            else { 
+                lx += Math.cos(ang + Math.PI/2) * -offset;
+                ly += Math.sin(ang + Math.PI/2) * -offset;
+            }
             
             ctx.fillText(Math.round((i / segments) * 14), lx, ly);
             ctx.restore();
@@ -396,7 +404,7 @@ function drawTacho(rpm) {
 
             ctx.save();
             ctx.translate(x, y);
-            ctx.rotate(ang + Math.PI / 2);
+            ctx.rotate(ang); 
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
