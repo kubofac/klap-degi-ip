@@ -13,24 +13,22 @@
         body, html {
     margin: 0;
     padding: 0;
-    width: 100vw;       /* 画面幅いっぱいを強制 */
-    height: 100vh;      /* 画面高さいっぱいを強制 */
-    background-color: var(--bg-dark);
-    color: var(--hrc-white);
-    font-family: 'Arial Black', sans-serif;
-    overflow: hidden;   /* スクロールバーによる「寸詰まり」を防止 */
-    position: fixed;    /* 画面を固定し、引っ張った時のバウンスを防ぐ */
-    left: 0;
-    top: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
 }
         #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
 canvas {
-    display: block;
-    width: 100vw;       /* キャンバス自体の表示サイズを画面全幅に */
-    height: 100vh;
-    touch-action: none; /* スマホのジェスチャー干渉を防止 */
+    /* 1カラム目の制約を無視して画面全体に広げる */
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 999; /* 他の要素より前面に出す */
+    pointer-events: none; /* 下にあるボタンなどを操作可能にする */
 }
-
         .main-ui-container {
             position: absolute; right: 15px; top: 90px; bottom: 50px;
             display: flex; flex-direction: row; align-items: flex-start; gap: 25px; z-index: 20; pointer-events: none;
@@ -333,34 +331,30 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // 【最重要】windowではなく、ドキュメント全体の「物理的な幅」を強制取得
-    // これにより、1カラム目の枠を無視して画面の端から端までをキャンバスにします
-    const w = document.documentElement.clientWidth || window.innerWidth;
-    const h = document.documentElement.clientHeight || window.innerHeight;
+    // ブラウザの表示領域の「真の全幅」を取得
+    const w = document.documentElement.clientWidth;
+    const h = document.documentElement.clientHeight;
 
-    // キャンバスを画面リサイズに完全に追従させる
-    if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-    }
+    // キャンバスの解像度を画面全体に強制同期
+    canvas.width = w;
+    canvas.height = h;
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) 1カラム目突き抜け設定 ---
-    const sideMargin = 15;   // 左端ギリギリ
-    const topMargin = 60;    // SPEEDの上
-    const footerHeight = h * 0.85; 
+    // --- iPhone 8 (375px) 1カラム目粉砕設定 ---
+    const sideMargin = 20;   
+    const topMargin = 60;    
+    const footerHeight = h * 0.82; 
     const barWeight = 50;   
 
-    // 【解決の鍵】R（半径）を小さく（75px）し、左側で即座に曲げます。
-    // これにより、右側へ向かう直線の「開始地点」が左に寄り、右端まで長く伸びます。
-    const rad = 75; 
+    // 【解決の鍵】R（半径）を「70」まで絞る。
+    // Rが小さいほど、左側ですぐに曲がりきり、右側へ伸びる直線が「物理的に長く」なります。
+    const rad = 70; 
     
-    // 右端を「画面幅(w)の100%」に。1カラム目の境界を物理的に無視します。
-    const rLimit = w - 5; 
+    // 右端を「画面幅(w)そのもの」に設定
+    const rLimit = w; 
     const vLimit = topMargin + rad; 
 
-    // 1. 各セクションの長さを計算
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
     const hLen = rLimit - (sideMargin + rad); 
@@ -374,19 +368,19 @@ function drawTacho(rpm) {
         c.moveTo(sideMargin, footerHeight);
         c.lineTo(sideMargin, vLimit);
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        // ここで右端（w-5）まで一気に線を引く
+        // ここで画面の右端(w)まで一気に直線を引く
         c.lineTo(rLimit, topMargin);
     }
 
-    // 2. 背景（グレー）
+    // 1. 背景
     ctx.save();
     createPath(ctx);
-    ctx.strokeStyle = "#222222"; 
+    ctx.strokeStyle = "#222"; 
     ctx.lineWidth = barWeight;
     ctx.stroke();
     ctx.restore();
 
-    // 3. 回転数バー（色分け）
+    // 2. バー（到達分）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
@@ -399,7 +393,7 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 4. 数値（ラベル）：常にグレー
+    // 3. 数値：バーのすぐ外側
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.fillStyle = "#555";
@@ -408,7 +402,6 @@ function drawTacho(rpm) {
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
-
         if (prog < 0.1) { 
             lx = sideMargin - offset;
             ly = footerHeight - (prog / 0.1) * vLen;
@@ -419,14 +412,10 @@ function drawTacho(rpm) {
             ly = vLimit + Math.sin(theta) * (rad + offset);
         } else { 
             const p = (prog - 0.3) / 0.7;
-            // 数値も右端(w-20)まで等間隔に配置
             lx = (sideMargin + rad) + p * (w - 20 - (sideMargin + rad));
             ly = topMargin - offset;
         }
-        
-        // 数値が画面外へ消えないよう保護
-        const finalX = Math.max(12, Math.min(w - 12, lx));
-        ctx.fillText(i, finalX, ly);
+        ctx.fillText(i, Math.max(15, Math.min(w - 15, lx)), ly);
     }
 }
 function updateButtonColors() {
