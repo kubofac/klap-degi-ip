@@ -11,7 +11,15 @@
         :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-dark); color: var(--hrc-white); font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
         #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
-        #canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: calc(100% - 60px) !important; z-index: 1; }
+      #canvas {
+    position: fixed; /* absolute から変更 */
+    left: 0;
+    bottom: 60px;    /* ボタンの高さ分だけ底から上げる */
+    width: 100%;
+    height: 200px;   /* タコメーターに必要な高さだけ確保する */
+    z-index: 5;
+    pointer-events: none; /* 下のボタン操作を邪魔しない */
+}
 
         .main-ui-container {
             position: absolute; right: 15px; top: 90px; bottom: 50px;
