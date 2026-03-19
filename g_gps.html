@@ -314,38 +314,32 @@ function tick() {
 function drawTacho(rpm) {
     if (!canvas.width || !canvas.height) return;
     
-    // 描画エリアのサイズを取得
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // キャンバスの純粋な解像度（内部サイズ）を使用
+    const cw = canvas.width;
+    const ch = canvas.height;
     
-    // フッター（ボタン）の高さを考慮。iPhoneのセーフエリアを含め、
-    // ボタンの「すぐ上」を 0 とした座標系を作ります。
-    const footerHeight = 65; 
-    const drawZoneHeight = h - footerHeight;
-
-    ctx.clearRect(0, 0, w, h);
+    // 描画をクリア
+    ctx.clearRect(0, 0, cw, ch);
     
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- 【重要】絶対座標による固定 ---
+    // --- 【重要】デバイスの画面高さを無視し、キャンバスの「左下」を(0,0)とする ---
     
-    // 1. 半径を「数字が絶対に溢れないサイズ」に固定
-    const rad = 130; 
+    // 1. 半径を120pxに固定（数字を近づけるため）
+    const rad = 120; 
     
-    // 2. 開始位置：左端から15px、ボタンの5px上。
-    // これで「TOTAL」表示などのUIに被るのを物理的に避けます。
-    const sX = 15; 
-    const bY = drawZoneHeight - 5; 
+    // 2. 描き始めを「キャンバスの左下ギリギリ」に固定
+    // これにより、iPhoneでもAQUOSでも「枠の左下」から始まります
+    const sX = 20; 
+    const bY = ch - 20; // キャンバスの底から20px上
 
-    // 3. 水平ラインの高さ：ボタンから半径分だけ上がった位置。
+    // 3. 水平ラインの高さを計算（底辺から半径分上がった位置）
     const hY = bY - rad; 
 
     const curveEnd = 25; 
-
-    // 4. バーの太さを固定（8px）。iPhone 8でもAQUOSでも同じ太さになります。
     const barWidth = 8; 
-    const barLength = 28; 
+    const barLength = 30; 
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
@@ -357,8 +351,8 @@ function drawTacho(rpm) {
             y = hY + rad + Math.sin(ang) * rad;
         } else {
             prog = (i - curveEnd) / (segments - curveEnd);
-            // 横幅は画面の95%まで。これでSPEEDパネルの横で止まりません。
-            x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
+            // 横幅いっぱいに伸ばす
+            x = (sX + rad) + (prog * (cw * 0.95 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
         }
@@ -367,44 +361,34 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic 900 22px Arial`; // 太字でサイズ固定
+            ctx.font = `italic 900 24px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 【重要】数字とバーの距離を極限まで詰める（重なる寸前）
+            // 【解決策】数字をバーの「真上」に重ねる（距離 0.95）
+            // これで、数字が出てもバーの位置（hY）は絶対に動きません。
             const labelDist = rad * 0.95; 
             
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
             
-            // iPhoneの左端・下端での数字切れを防止
-            const safeLx = Math.max(15, lx);
-            const safeLy = Math.min(drawZoneHeight - 10, ly);
-            
-            ctx.fillText(Math.round((i / segments) * 14), safeLx, safeLy);
+            ctx.fillText(Math.round((i / segments) * 14), lx, ly);
             ctx.restore();
         }
 
         // --- バー（目盛り）の描画 ---
         if (i < segments) {
             const currentRpmVal = (i / segments) * 14000;
-            if (i < active) {
-                if (currentRpmVal >= 12500) ctx.fillStyle = "var(--hrc-red)";
-                else if (currentRpmVal >= 8000) ctx.fillStyle = "var(--hrc-blue)";
-                else ctx.fillStyle = "#FFFFFF";
-            } else {
-                ctx.fillStyle = "#222";
-            }
+            ctx.fillStyle = (i < active) ? (currentRpmVal >= 12500 ? "var(--hrc-red)" : (currentRpmVal >= 8000 ? "var(--hrc-blue)" : "#FFF")) : "#222";
 
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // 常に 8px の太さで描画
+            // 常に太さ 8px で固定描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
     }
-    // RPM数値テキストの更新
     document.getElementById('rpm_val').textContent = Math.floor(rpm);
 }
 
