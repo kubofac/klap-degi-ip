@@ -312,58 +312,54 @@ function tick() {
 
 // --- 4. 描画・UI制御 ---
 
+// --- 4. 描画・UI制御 ---
+
 function drawTacho(rpm) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const w = canvas.width;
-    const h = canvas.height;
+    if (!canvas.width || !canvas.height) return;
     
-    // 画面サイズに応じたレスポンシブな基本設定
+    // ctx.scale(dpr, dpr) を使っているため、描画コード内では 
+    // css上のサイズ（window.innerWidth等）を基準に計算します
+    const w = window.innerWidth;
+    const h = window.innerHeight - 60;
+    
+    ctx.clearRect(0, 0, w, h);
+    
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
     
-    // 画面左下から開始するためのオフセット（wの5%地点）
-    const sX = w * 0.05; 
-    // 上部（水平ライン）の高さ
-    const hY = h * 0.25; 
-    // 下部（カーブ開始）の高さ
-    const bY = h * 0.85; 
+    // 画面の「左下」を基準点にするための設定
+    const sX = w * 0.05;      // 左端から5%
+    const hY = h * 0.20;      // 上部ラインの高さ（画面上から20%）
+    const bY = h * 0.80;      // カーブ開始の高さ（画面上から80% ＝ 下の方）
+    const rad = bY - hY;      // 半径を高さの差で決定
     
-    // 半径を画面の高さに合わせて動的に決定
-    const rad = bY - hY; 
-    
-    // カーブセクションの割合（iPhone8でもAQUOSでも一定の形状を保つ）
     const curveEnd = 30; 
-
-    // ★重要: バーの太さを画面幅の 0.6% に固定（これで太すぎ・細すぎを防ぐ）
-    const barWidth = w * 0.006; 
-    // バーの長さを半径の 25% に固定
-    const barLength = rad * 0.25;
+    const barWidth = w * 0.007; // バーの太さを画面横幅の0.7%に固定
+    const barLength = rad * 0.22;
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
         
         if (i <= curveEnd) {
-            // カーブ：画面左下から左上へ
+            // 左下から左上へのカーブ
             prog = i / curveEnd;
             ang = Math.PI + (prog * (Math.PI / 2));
             x = sX + rad + Math.cos(ang) * rad;
             y = hY + rad + Math.sin(ang) * rad;
         } else {
-            // 直線：左上から右へ
+            // 左上から右への直線
             prog = (i - curveEnd) / (segments - curveEnd);
             x = (sX + rad) + (prog * (w * 0.92 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
         }
 
-        // ラベル（数字）の描画
+        // ラベル（数字）
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            // フォントサイズも画面高に合わせて可変
-            ctx.font = `italic bold ${h * 0.06}px Arial`; 
+            ctx.font = `italic bold ${Math.round(h * 0.05)}px Arial`; 
             ctx.textAlign = "center";
-            // 数字をバーの少し外側に配置
             const labelDist = rad * 0.45;
             ctx.fillText(
                 Math.round((i / segments) * 14), 
@@ -387,7 +383,7 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // バーの形状を [中心から左右にbarWidth, 上下にbarLength] で描画
+            // 均一な太さで描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
@@ -463,23 +459,45 @@ document.getElementById('reloadBtn').onclick = () => {
     } else { location.reload(); }
 };
 
-window.onresize = () => {
-    // ディスプレイのピクセル密度（2倍、3倍など）を取得
+// 1. 関数として定義
+function handleResize() {
     const dpr = window.devicePixelRatio || 1;
-    // 表示サイズ
     const displayWidth = window.innerWidth;
     const displayHeight = window.innerHeight - 60;
     
-    // キャンバスの実解像度を調整（ボケ防止）
+    // 実解像度の設定（ボケ防止）
     canvas.width = displayWidth * dpr;
     canvas.height = displayHeight * dpr;
     
-    // スケールを調整して座標計算を楽にする
-    ctx.scale(dpr, dpr);
-    
-    // CSS上のサイズを固定
+    // 表示サイズの設定
     canvas.style.width = displayWidth + 'px';
     canvas.style.height = displayHeight + 'px';
+    
+    // 描画コンテキストのリセットとスケーリング
+    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+    ctx.scale(dpr, dpr);
+}
+
+// 2. イベントに紐付け（これまでの window.onresize は消してOK）
+window.onresize = handleResize;
+
+// 3. 起動時の処理
+window.onload = () => { 
+    handleResize(); // ここで最初に画面サイズを確定させる
+    
+    // --- 以下、既存の localStorage 読み込み処理など ---
+    const p1a = localStorage.getItem('startLineP1Lat');
+    if (p1a) {
+        LAP_LINE_P1 = { lat: parseFloat(p1a), lon: parseFloat(localStorage.getItem('startLineP1Lon')) };
+        LAP_LINE_P2 = { lat: parseFloat(localStorage.getItem('startLineP2Lat')), lon: parseFloat(localStorage.getItem('startLineP2Lon')) };
+        pulseCount = parseInt(localStorage.getItem('pl1')) || 1;
+    }
+    
+    // アニメーションループ開始
+    (function r(){ 
+        drawTacho(currentRPM); 
+        requestAnimationFrame(r); 
+    })(); 
 };
 </script>
 </body>
