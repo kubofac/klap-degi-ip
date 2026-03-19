@@ -324,93 +324,89 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // 【解決策1】デバイスピクセル比を考慮し、物理的な画面幅を強制取得
-    const dpr = window.devicePixelRatio || 1;
-    const w = document.documentElement.clientWidth || window.innerWidth;
-    const h = document.documentElement.clientHeight || window.innerHeight;
-    
-    // キャンバスサイズを物理解像度に合わせる
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    ctx.scale(dpr, dpr);
+    // 画面サイズを再設定（ズレ防止）
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width = w;
+    canvas.height = h;
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- レイアウト設定 ---
-    const footerHeight = 50; 
-    const sideMargin = 45;   
-    const topMargin = 75;    
-    const rad = w * 0.32;   // 画面幅に応じた滑らかなR
-    const barWeight = 45; 
-
-    // 【解決策2】右端（14の真下）を「画面の右端マイナス数ピクセル」に強制固定
-    const rLimit = w - 20; 
-    const vLen = 30; 
-    const vLimit = h - footerHeight - vLen; 
-
-    // セクションごとの長さ
-    const cLen = (Math.PI * rad) / 2;
-    const hLen = rLimit - (sideMargin + rad);
-    const totalLen = vLen + cLen + hLen;
+    // --- レイアウトの絶対基準 ---
+    const sideMargin = 50;  // 左端の余白
+    const topMargin = 80;   // 上端の余白（14の数字用）
+    const footerHeight = 60;
+    const barWeight = 45;   // ★太さを45pxに絶対固定
     
-    // 現在の回転数での到達距離
-    const currentDist = (rpm / 14000) * totalLen;
+    // iPhone 8でもAQUOSでも「右いっぱい」かつ「滑らか」な半径
+    const rad = 120; 
+    const rLimit = w - 25;  // 右端から25pxまで強制的に伸ばす
+    const vLimit = h - footerHeight - 35; // 垂直立ち上がりは35pxに抑制
 
-    // --- 線画処理（背景と動くバーを分離） ---
-    function drawBaseLine(color) {
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = barWeight;
-        ctx.lineCap = "butt";
-        ctx.moveTo(sideMargin, h - footerHeight);
-        ctx.lineTo(sideMargin, vLimit);
-        ctx.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        ctx.lineTo(rLimit, vLimit - rad);
-        ctx.stroke();
-    }
-
-    // 1. 背景のグレーを描画（常に右端まで）
-    drawBaseLine("#222222");
-
-    // 2. 回転数に応じたバーを描画（クリッピングで確実にカット）
-    ctx.save();
-    // 回転数に応じた色を決定
-    if (rpm >= 11000) ctx.fillStyle = "#FF0000";
-    else if (rpm >= 6000) ctx.fillStyle = "#0055FF";
-    else ctx.fillStyle = "#FFFFFF";
-
-    // 到達距離までのパスを作成
+    // 1. 背景のパスを描画（未到達：濃いグレー）
     ctx.beginPath();
-    ctx.moveTo(sideMargin, h - footerHeight);
-    
-    let d = 0;
-    // 垂直区間
-    if (currentDist > 0) {
-        const step = Math.min(currentDist, vLen);
-        ctx.lineTo(sideMargin, (h - footerHeight) - step);
-        d += step;
-    }
-    // 円弧区間
-    if (currentDist > vLen) {
-        const step = Math.min(currentDist - vLen, cLen);
-        const angle = (step / cLen) * (Math.PI / 2);
-        ctx.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI + angle);
-        d += step;
-    }
-    // 水平区間
-    if (currentDist > vLen + cLen) {
-        const step = Math.min(currentDist - (vLen + cLen), hLen);
-        ctx.lineTo(sideMargin + rad + step, vLimit - rad);
-    }
+    ctx.lineWidth = barWeight;
+    ctx.lineCap = "butt";   // 端を平らに
+    ctx.lineJoin = "miter"; // 角の太さを一定に保つ
+    ctx.strokeStyle = "#222222";
 
-    ctx.strokeStyle = ctx.fillStyle; // 上で決めた色を適用
+    ctx.moveTo(sideMargin, h - footerHeight);
+    ctx.lineTo(sideMargin, vLimit);
+    ctx.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
+    ctx.lineTo(rLimit, vLimit - rad);
+    ctx.stroke();
+
+    // 2. 回転数に応じたバー（色付き）
+    // 全長に対する現在の割合で「点線」を使って塗る（最もズレが少ない手法）
+    const totalLen = (h - footerHeight - vLimit) + (Math.PI * rad / 2) + (rLimit - (sideMargin + rad));
+    const activeLen = Math.max(0, Math.min(totalLen, (rpm / 14000) * totalLen));
+
+    ctx.beginPath();
     ctx.lineWidth = barWeight;
     ctx.lineCap = "butt";
+    ctx.setLineDash([activeLen, totalLen]); // 現在の回転数分だけ描く
+    
+    if (rpm >= 11000) ctx.strokeStyle = "#FF0000";      // 赤
+    else if (rpm >= 6000) ctx.strokeStyle = "#0055FF";  // 青
+    else ctx.strokeStyle = "#FFFFFF";                  // 白
+    
+    ctx.moveTo(sideMargin, h - footerHeight);
+    ctx.lineTo(sideMargin, vLimit);
+    ctx.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
+    ctx.lineTo(rLimit, vLimit - rad);
     ctx.stroke();
-    ctx.restore();
 
     // 3. 数値（ラベル）描画
-    drawLabels(ctx, w, h, sideMargin, vLimit, rad, rLimit, footerHeight);
+    ctx.setLineDash([]); // 点線を解除
+    ctx.font = "italic 900 26px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#555555"; // 常にグレー
+
+    const offset = 55; 
+    for (let i = 0; i <= 14; i++) {
+        const prog = i / 14;
+        let lx, ly;
+
+        if (prog < 0.1) { // 垂直区間 (0-1)
+            lx = sideMargin - offset;
+            ly = (h - footerHeight) - (prog / 0.1) * 35;
+        } else if (prog < 0.45) { // 円弧区間 (2-6)
+            const p = (prog - 0.1) / 0.35;
+            const theta = Math.PI + (p * Math.PI / 2);
+            lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
+            ly = vLimit + Math.sin(theta) * (rad + offset);
+        } else { // 直線区間 (7-14)
+            const p = (prog - 0.45) / 0.55;
+            lx = (sideMargin + rad) + p * (rLimit - (sideMargin + rad));
+            ly = vLimit - rad - offset;
+        }
+
+        // 画面外への「はみ出し」を強制防止
+        const safeLx = Math.max(20, Math.min(w - 20, lx));
+        const safeLy = Math.max(25, ly);
+        ctx.fillText(i, safeLx, safeLy);
+    }
 }
 
 function drawLabels(ctx, w, h, sideMargin, vLimit, rad, rLimit, footerHeight) {
