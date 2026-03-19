@@ -331,76 +331,70 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
     
-    const segments = 100;
+    const segments = 80; // 密度を少し下げて、一本一本の太さを際立たせる
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- レイアウト設定（iPhone 8 最適化） ---
-    const footerHeight = 65;  
-    const sideMargin = 55;    // 左端（0, 1用）
-    const topMargin = 75;     // 上端（14用）
+    // --- iPhone 8 (375px幅) 専用のスリム設計 ---
+    const footerHeight = 60;  
+    const sideMargin = 40;    // 左端ギリギリに
+    const topMargin = 70;     
     
-    // 【重要】太さを一定にするため「真円（半径固定）」にします
-    // その代わり、中心を右にずらして「楕円のような緩やかさ」を作ります
-    const rad = 140; 
-    const barWidth = 42; 
+    // 半径を小さく(100)して、左側で速やかに曲がりきる
+    const rad = 100; 
+    const barWidth = 40; 
 
     for (let i = 0; i <= segments; i++) {
         const prog = i / segments;
         let x, y, ang;
 
-        // 垂直 15%、カーブ 30%、水平 55%
+        // 垂直 15%、カーブ 25%、水平 60% (直線を最長に)
         if (prog < 0.15) {
             const p = prog / 0.15;
             x = sideMargin;
             y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + rad));
             ang = 0;
         } 
-        else if (prog < 0.45) {
-            const p = (prog - 0.15) / 0.3;
-            // 90度の弧（180度〜270度）
-            const theta = Math.PI + (p * Math.PI / 2);
+        else if (prog < 0.4) {
+            const p = (prog - 0.15) / 0.25;
+            const theta = Math.PI + (p * Math.PI / 2); // 180度〜270度
             x = sideMargin + rad + Math.cos(theta) * rad;
             y = (topMargin + rad) + Math.sin(theta) * rad;
             ang = theta + Math.PI / 2;
         } 
         else {
-            const p = (prog - 0.45) / 0.55;
-            // 右端 w-40 までしっかり直線。ここが短いと寸詰まりに見えます
+            const p = (prog - 0.4) / 0.6;
+            // 画面の右端（w - 30）まで強制的に伸ばす
             const startX = sideMargin + rad;
-            const endX = w - 40; 
+            const endX = w - 30; 
             x = startX + p * (endX - startX);
             y = topMargin;
             ang = Math.PI / 2;
         }
 
-        // --- 数値（ラベル）の描画：すべて「外側」 ---
+        // --- 数値（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic 900 28px Arial`; 
+            ctx.font = `italic 900 26px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
             let lx = x, ly = y;
-            const offset = 55; // バーの外側
+            const offset = 50; 
             
-            if (prog < 0.15) {
-                lx -= offset; 
-            }
-            else if (prog >= 0.45) {
-                ly -= offset; 
-            }
+            if (prog < 0.15) { lx -= offset; }
+            else if (prog >= 0.4) { ly -= offset; }
             else { 
-                const p = (prog - 0.15) / 0.3;
+                const p = (prog - 0.15) / 0.25;
                 const theta = Math.PI + (p * Math.PI / 2);
                 lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
                 ly = (topMargin + rad) + Math.sin(theta) * (rad + offset);
             }
-            ctx.fillText(Math.round((i/segments)*14), Math.min(w-20, Math.max(20, lx)), Math.max(25, ly));
+            ctx.fillText(Math.round((i/segments)*14), Math.min(w-15, Math.max(15, lx)), Math.max(25, ly));
             ctx.restore();
         }
 
-        // --- バーの描画（太さの歪みを完全排除） ---
+        // --- バーの描画（重なり防止補正） ---
         if (i < segments) {
             const val = (i / segments) * 14000;
             ctx.fillStyle = (i < active) ? 
@@ -409,8 +403,8 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang); 
-            // 矩形の描画をシンプルに固定。これで太さが変わりません。
-            ctx.fillRect(-barWidth / 2, -25, barWidth, 50);
+            // 【修正】barWidth * 0.8 にして隣との隙間を作り、太さを一定に見せる
+            ctx.fillRect(-(barWidth * 0.8) / 2, -25, barWidth * 0.8, 50);
             ctx.restore();
         }
     }
