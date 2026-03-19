@@ -18,7 +18,7 @@
     width: 100vw;
     height: 100vh;
     z-index: 5;
-    pointer-events: none; /* 下のボタンが押せるようにする */
+    pointer-events: none;
 }
 
         .main-ui-container {
@@ -323,12 +323,10 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // 1. デバイスの画面幅と高さをリアルタイムで取得
     const w = window.innerWidth;
     const h = window.innerHeight;
     
-    // Canvasの解像度をデバイスの画面サイズにピッタリ合わせる
-    // これにより「中央で止まる」「位置がズレる」を物理的に防ぎます
+    // キャンバスのサイズを画面に合わせる
     canvas.width = w;
     canvas.height = h;
     
@@ -337,36 +335,37 @@ function drawTacho(rpm) {
     const segments = 75;
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- 【重要】高さの基準を「フッターのすぐ上」に強制固定 ---
-    const footerHeight = 60; // 下部ボタンエリアの高さ
-    const bottomBase = h - footerHeight - 10; // ボタンの10px上が起点
-
-    // 2. 半径を「画面の高さ」ではなく「固定ピクセル」にする
-    // これでAQUOSで中央まで浮き上がるのを防ぎます
-    const rad = 140; 
+    // --- 【超重要】高さを「下から」の絶対値で固定する ---
     
-    // 3. 水平ライン（直線部分）の高さを「底辺から半径分上」に固定
-    // これで SPEED パネルの真上を通るようになります
-    const hY = bottomBase - rad; 
+    // 1. 半径を少し小さくして、画面下部に凝縮させる (120px)
+    const rad = 120; 
+    
+    // 2. 起点を「画面の本当の底」から「ボタンの高さ(約60px) + 余裕(10px)」に固定
+    // これにより、iPhone 8でもAQUOSでも、ボタンのすぐ上になります
+    const footerHeight = 70; 
+    const bY = h - footerHeight; 
+
+    // 3. 水平ライン（直線部分）の高さを「下から(rad + footer)」の位置に固定
+    // これで画面中央まで浮かび上がるのを物理的に阻止します
+    const hY = bY - rad; 
+    
     const sX = 20; // 左端の余白
 
     const curveEnd = 25;
-    const barWidth = 6; 
+    const barWidth = 8; 
     const barLength = 30;
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
         
         if (i <= curveEnd) {
-            // 【カーブ部分】左下から左上へ
             prog = i / curveEnd;
             ang = Math.PI + (prog * (Math.PI / 2));
             x = sX + rad + Math.cos(ang) * rad;
             y = hY + rad + Math.sin(ang) * rad;
         } else {
-            // 【直線部分】左上から右端へ
             prog = (i - curveEnd) / (segments - curveEnd);
-            // 画面の右端（w * 0.95）までしっかり伸ばす
+            // 右端までしっかり伸ばす
             x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
@@ -376,11 +375,11 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic 900 ${rad * 0.22}px Arial`; 
+            ctx.font = `italic 900 24px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 数字をバーに極限まで密着（重なる直前）
+            // 数字をバーのすぐ内側（重なるくらい）に密着
             const labelDist = rad * 0.92;
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
@@ -393,7 +392,7 @@ function drawTacho(rpm) {
         if (i < segments) {
             const val = (i / segments) * 14000;
             ctx.fillStyle = (i < active) ? 
-                (val >= 12500 ? "#ff0000" : (val >= 8000 ? "#0000ff" : "#ffffff")) : "#222";
+                (val >= 12500 ? "#ff4444" : (val >= 8000 ? "#4444ff" : "#ffffff")) : "#222";
 
             ctx.save();
             ctx.translate(x, y);
@@ -402,9 +401,6 @@ function drawTacho(rpm) {
             ctx.restore();
         }
     }
-    // 数値表示の更新
-    const rpmValDisp = document.getElementById('rpm_val');
-    if(rpmValDisp) rpmValDisp.textContent = Math.floor(rpm);
 }
 
 function updateButtonColors() {
