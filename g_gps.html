@@ -331,47 +331,48 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
     
-    const segments = 85; 
+    // セグメント数を調整して「密度」と「太さ」を両立
+    const segments = 60; 
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- iPhone 8 (375px) で「右まで長く」見せるための黄金比 ---
-    const sideMargin = 50;  // 0, 1用の左余白
-    const topMargin = 75;   // 14用の描画高さ
+    // --- 画面幅に基づいた可変レイアウト（iPhone 8対策） ---
+    const sideMargin = w * 0.12;  // 左余白を画面幅の12%に
+    const topMargin = h * 0.12;   // 上余白を画面高さの12%に
+    const footerHeight = 70;
     
-    // 【重要】半径を「80」まで小さくします。
-    // これにより左側でサッと曲がり、右側の直線が圧倒的に長くなります（寸詰まり解消）。
-    const rad = 80; 
-    const barThick = 40; // ★この「40」が全区間、見た目上の「太さ」になります
+    // 半径を画面幅の20%に抑えることで、右端への直線を「必ず」確保する
+    const rad = w * 0.22; 
+    const barThick = 45; // ★ここが「極太」の正体です。45px固定。
 
     for (let i = 0; i <= segments; i++) {
         const prog = i / segments;
         let x, y, ang;
 
-        // 区間配分：垂直10%、カーブ25%、水平65%（右端まで突き抜けさせる）
-        if (prog < 0.1) {
-            const p = prog / 0.1;
+        // 垂直 15% / カーブ 30% / 水平 55%
+        if (prog < 0.15) {
+            const p = prog / 0.15;
             x = sideMargin;
-            y = (h - 60) - p * ((h - 60) - (topMargin + rad));
+            y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + rad));
             ang = 0;
         } 
-        else if (prog < 0.35) {
-            const p = (prog - 0.1) / 0.25;
+        else if (prog < 0.45) {
+            const p = (prog - 0.15) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
             x = sideMargin + rad + Math.cos(theta) * rad;
             y = (topMargin + rad) + Math.sin(theta) * rad;
             ang = theta + Math.PI / 2;
         } 
         else {
-            const p = (prog - 0.35) / 0.65;
-            // 右端ギリギリまで伸ばす
+            const p = (prog - 0.45) / 0.55;
+            // 画面の右端 95% 地点まで強制的に伸ばす
             const startX = sideMargin + rad;
-            const endX = w - 35; 
+            const endX = w * 0.95; 
             x = startX + p * (endX - startX);
             y = topMargin;
             ang = Math.PI / 2;
         }
 
-        // --- 数字（ラベル）の描画 ---
+        // --- 数値（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
@@ -379,12 +380,12 @@ function drawTacho(rpm) {
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            const offset = 55;
+            const offset = 60; // 太いバーの外側へ
             let lx = x, ly = y;
-            if (prog < 0.1) { lx -= offset; }
-            else if (prog >= 0.35) { ly -= offset; }
+            if (prog < 0.15) { lx -= offset; }
+            else if (prog >= 0.45) { ly -= offset; }
             else {
-                const p = (prog - 0.1) / 0.25;
+                const p = (prog - 0.15) / 0.3;
                 const theta = Math.PI + (p * Math.PI / 2);
                 lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
                 ly = (topMargin + rad) + Math.sin(theta) * (rad + offset);
@@ -393,7 +394,7 @@ function drawTacho(rpm) {
             ctx.restore();
         }
 
-        // --- バーの描画（太さの歪みを物理的に排除） ---
+        // --- バーの描画（太さ固定・隙間なし） ---
         if (i < segments) {
             const val = (i / segments) * 14000;
             ctx.fillStyle = (i < active) ? 
@@ -403,10 +404,11 @@ function drawTacho(rpm) {
             ctx.translate(x, y);
             ctx.rotate(ang);
             
-            // 【解決策】バーの「幅」を小さく(12px程度)して隙間を作り、
-            // 「高さ（タコメーターの太さ）」を barThick(40px) に固定します。
-            // これで曲がり角でもバーが重ならず、太さが一定に見えます。
-            ctx.fillRect(-6, -barThick / 2, 12, barThick); 
+            // 【解決】fillRectの第4引数（高さ）を barThick にすることで
+            // どの画面でも「45pxの極太ライン」を維持します。
+            // 第3引数を少し広め(w/segments相当)にして隙間を埋めます。
+            const stepWidth = (w / segments) * 1.5; 
+            ctx.fillRect(-stepWidth/2, -barThick / 2, stepWidth, barThick); 
             ctx.restore();
         }
     }
