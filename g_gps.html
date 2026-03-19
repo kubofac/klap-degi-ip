@@ -14,12 +14,12 @@
 #canvas {
     position: fixed;
     left: 0;
-    bottom: 60px; /* ボタンのすぐ上 */
-    width: 100%;
-    height: 150px; /* 高さを限定して、中央まで上がらないようにする */
-    z-index: 10;
+    bottom: 50px;    /* フッターボタンのすぐ上 */
+    width: 100vw;    /* 画面幅いっぱい */
+    height: auto;    /* アスペクト比維持 */
+    z-index: 100;
     pointer-events: none;
-    background: transparent;
+    background: transparent; /* 背景を透明に（下の文字が見えるように） */
 }
 
         .main-ui-container {
@@ -53,7 +53,7 @@
 <body>
 
 <div id="dashboard">
- <canvas id="canvas" width="800" height="300"></canvas>
+ <canvas id="canvas" width="800" height="400"></canvas>
     <div class="main-ui-container">
         <div id="info-overlay">
             <div id="rpm_val">0</div>
@@ -322,26 +322,25 @@ function tick() {
 // --- 4. 描画・UI制御 ---
 function drawTacho(rpm) {
     const canvas = document.getElementById('canvas');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // キャンバス内部の固定サイズを使用
     const cw = 800;
-    const ch = 300;
-    
+    const ch = 400; // 高さを400に設定
     ctx.clearRect(0, 0, cw, ch);
     
-    const segments = 75; 
+    const segments = 75;
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- すべてを「px」で固定（画面サイズに依存させない） ---
-    const rad = 180;      // 半径
-    const sX = 30;       // 左端からの開始位置
-    const bY = ch - 20;  // キャンバス内での底辺
-    const hY = bY - rad; // 水平ラインの高さ（SPEEDの上を通る高さ）
+    // --- レイアウト固定値（ここを調整して高さを変える） ---
+    const rad = 160;      // 半径（少し大きくして視認性をアップ）
+    const sX = 30;       // 左の余白
+    const bY = ch - 20;  // キャンバスの「底」から20px上。ここがメーターの起点。
+    const hY = bY - rad; // 14000回転までの水平ラインの高さ
 
-    const curveEnd = 25; 
-    const barWidth = 10; // 太さをしっかり出す
-    const barLength = 40; 
+    const curveEnd = 25;
+    const barWidth = 10;
+    const barLength = 35;
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
@@ -353,7 +352,6 @@ function drawTacho(rpm) {
             y = hY + rad + Math.sin(ang) * rad;
         } else {
             prog = (i - curveEnd) / (segments - curveEnd);
-            // 右端（14の数字）までしっかり伸ばす
             x = (sX + rad) + (prog * (cw - (sX + rad + 40)));
             y = hY;
             ang = 1.5 * Math.PI;
@@ -363,12 +361,12 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = "italic 900 35px Arial"; // 数字を大きく
+            ctx.font = "italic 900 32px Arial"; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 数字をバーに極限まで近づける (0.9倍)
-            const labelDist = rad * 0.9; 
+            // 【重要】labelDistをrad * 0.95にして、バーに極限まで密着
+            const labelDist = rad * 0.95;
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
             
@@ -378,9 +376,9 @@ function drawTacho(rpm) {
 
         // --- バー（目盛り）の描画 ---
         if (i < segments) {
-            const currentRpmVal = (i / segments) * 14000;
+            const val = (i / segments) * 14000;
             ctx.fillStyle = (i < active) ? 
-                (currentRpmVal >= 12500 ? "#ff0000" : (currentRpmVal >= 8000 ? "#0000ff" : "#ffffff")) : "#222";
+                (val >= 12500 ? "#ff0000" : (val >= 8000 ? "#0000ff" : "#ffffff")) : "#222";
 
             ctx.save();
             ctx.translate(x, y);
