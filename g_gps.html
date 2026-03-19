@@ -331,81 +331,85 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- レイアウト設定 ---
-    const footerHeight = 65;
-    const sideMargin = 60;  
-    const topMargin = 85;   
-    const rad = 140; // 緩やかな円弧
-    const barWeight = 45; // 極太45px
+    // --- レイアウト設定（iPhone 8 & AQUOS 両対応） ---
+    const footerHeight = 60;
+    const sideMargin = 45;   
+    const topMargin = 70;    
+    const rad = 100;         // 左側でコンパクトに曲げる
+    const barWeight = 45; 
+    const vLimit = topMargin + rad; // 垂直が終わる高さ
+    const rLimit = w - 35;          // 右端の限界
 
-    // 1. メーターの軌道パス
-    const path = new Path2D();
-    path.moveTo(sideMargin, h - footerHeight);
-    path.lineTo(sideMargin, topMargin + rad);
-    path.arc(sideMargin + rad, topMargin + rad, rad, Math.PI, Math.PI * 1.5);
-    path.lineTo(w - 40, topMargin); 
+    // 1. 全体の長さを先に計算（色塗りのため）
+    const vLen = (h - footerHeight) - vLimit; 
+    const cLen = (Math.PI * rad) / 2;                 
+    const hLen = rLimit - (sideMargin + rad);         
+    const totalLen = vLen + cLen + hLen;
+    const activeLen = (rpm / 14000) * totalLen;
 
-    // 2. 背景（未到達部分：常に暗いグレー）
-    ctx.beginPath();
+    // --- 共通のパス描画関数 ---
+    function createTachoPath(context) {
+        context.beginPath();
+        context.moveTo(sideMargin, h - footerHeight);
+        context.lineTo(sideMargin, vLimit);
+        context.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
+        context.lineTo(rLimit, topMargin);
+    }
+
+    // 2. 背景（未到達：濃いグレー）を描画
+    ctx.save();
+    createTachoPath(ctx);
     ctx.strokeStyle = "#222222"; 
     ctx.lineWidth = barWeight;
     ctx.lineCap = "butt";
-    ctx.stroke(path);
+    ctx.stroke();
+    ctx.restore();
 
-    // 3. 回転数バー（到達部分の色分け）
-    const vLen = h - footerHeight - (topMargin + rad); 
-    const cLen = (Math.PI * rad) / 2;                 
-    const hLen = w - 40 - (sideMargin + rad);         
-    const totalLength = vLen + cLen + hLen;
-    const activeLength = (rpm / 14000) * totalLength;
-
+    // 3. 回転数バー（到達部分）を描画
     ctx.save();
-    ctx.setLineDash([activeLength, totalLength]);
+    createTachoPath(ctx);
+    ctx.lineWidth = barWeight;
+    ctx.lineCap = "butt";
     
-    // --- 【ご指定の色使い分けロジック】 ---
-    if (rpm >= 11000) {
-        ctx.strokeStyle = "#FF0000"; // 11,000rpm〜：赤
-    } else if (rpm >= 6000) {
-        ctx.strokeStyle = "#0055FF"; // 6,000〜11,000rpm：青
-    } else {
-        ctx.strokeStyle = "#FFFFFF"; // 〜6,000rpm：白
-    }
+    // 点線を利用して「現在の回転数」まで塗る
+    ctx.setLineDash([activeLen, totalLen]);
+    ctx.lineDashOffset = 0;
+
+    // 色分けロジック
+    if (rpm >= 11000) ctx.strokeStyle = "#FF0000";
+    else if (rpm >= 6000) ctx.strokeStyle = "#0055FF";
+    else ctx.strokeStyle = "#FFFFFF";
     
-    ctx.stroke(path);
+    ctx.stroke();
     ctx.restore();
 
     // 4. 数値（ラベル）描画
-    drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, rpm);
-}
-
-function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, rpm) {
-    ctx.font = "italic 900 28px Arial";
+    ctx.font = "italic 900 26px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const offset = 60; 
+    const offset = 55; 
 
     for (let i = 0; i <= 14; i++) {
         const targetRpm = i * 1000;
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.2) { 
+        if (prog < 0.15) { // 垂直
             lx = sideMargin - offset;
-            ly = (h - footerHeight) - (prog / 0.2) * (h - footerHeight - (topMargin + rad));
-        } else if (prog < 0.5) { 
-            const p = (prog - 0.2) / 0.3;
+            ly = (h - footerHeight) - (prog / 0.15) * vLen;
+        } else if (prog < 0.4) { // 円弧
+            const p = (prog - 0.15) / 0.25;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
-            ly = topMargin + rad + Math.sin(theta) * (rad + offset);
-        } else { 
-            lx = (sideMargin + rad) + ((prog - 0.5) / 0.5) * (w - 40 - (sideMargin + rad));
+            ly = vLimit + Math.sin(theta) * (rad + offset);
+        } else { // 水平
+            const p = (prog - 0.4) / 0.6;
+            lx = (sideMargin + rad) + p * hLen;
             ly = topMargin - offset;
         }
 
-        // --- 数字の色指定 ---
-        // 到達時：白(#FFFFFF) / 未到達時：グレー(#444444)
         ctx.fillStyle = rpm >= targetRpm ? "#FFFFFF" : "#444444";
-        ctx.fillText(i, Math.max(25, Math.min(w - 25, lx)), Math.max(30, ly));
+        ctx.fillText(i, Math.max(20, Math.min(w - 20, lx)), Math.max(25, ly));
     }
 }
 
