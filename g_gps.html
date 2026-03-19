@@ -331,37 +331,42 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) 黄金バランス設定 ---
+    // --- iPhone 8 (375px) 完全同期設定 ---
     const footerHeight = 65;
-    const sideMargin = 55;   // 数字の「0」用のスペース
-    const topMargin = 85;    // 数字の「14」用のスペース
+    const sideMargin = 50;   // 左端（0, 1用）
+    const topMargin = 85;    // 上端（14用）
     
-    // 【滑らかさの鍵】半径を「140」に。
-    // これにより、画面の左端付近から中央付近まで使って「ゆったり」曲がります。
+    // 滑らかな円弧を維持
     const rad = 140; 
     const barWeight = 45; 
 
-    // 垂直が終わる高さ（ここを少し高めにすると、さらにRが綺麗に見えます）
+    // 【重要】右端のターゲットを画面幅(w)から逆算して固定
+    const rLimit = w - 30; // 右端から30pxの位置（14の数字の真下）
     const vLimit = topMargin + rad; 
-    const rLimit = w - 40; // 右端
 
     // 1. 全体の長さを計算
     const vLen = (h - footerHeight) - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rLimit - (sideMargin + rad);         
+    const hLen = rLimit - (sideMargin + rad); // ここがマイナスにならないよう制御
+    
+    // もし iPhone 8 で hLen が短すぎる場合は rad を自動で微調整する安全装置
+    const adjustedRad = (sideMargin + rad > rLimit - 20) ? (rLimit - sideMargin - 20) : rad;
+    const adjustedVLimit = topMargin + adjustedRad;
+
     const totalLen = vLen + cLen + hLen;
     const activeLen = (rpm / 14000) * totalLen;
 
     function createPath(c) {
         c.beginPath();
         c.moveTo(sideMargin, h - footerHeight);
-        c.lineTo(sideMargin, vLimit);
-        // 優雅な弧を描く
-        c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
+        c.lineTo(sideMargin, adjustedVLimit);
+        // 円弧：開始(sideMargin), 終了(sideMargin + adjustedRad)
+        c.arc(sideMargin + adjustedRad, adjustedVLimit, adjustedRad, Math.PI, Math.PI * 1.5);
+        // 直線：終了点 rLimit まで確実に引く
         c.lineTo(rLimit, topMargin);
     }
 
-    // 2. 背景（未到達：濃いグレー）
+    // 2. 背景（濃いグレー）
     ctx.save();
     createPath(ctx);
     ctx.strokeStyle = "#222222"; 
@@ -370,7 +375,7 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 回転数バー（到達部分の色分け）
+    // 3. 回転数バー
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
@@ -385,6 +390,10 @@ function drawTacho(rpm) {
     ctx.restore();
 
     // 4. 数値（ラベル）描画
+    drawLabels(ctx, w, h, sideMargin, topMargin, adjustedRad, footerHeight, adjustedVLimit, rLimit, rpm);
+}
+
+function drawLabels(ctx, w, h, sideMargin, topMargin, rad, footerHeight, vLimit, rLimit, rpm) {
     ctx.font = "italic 900 28px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -395,11 +404,9 @@ function drawTacho(rpm) {
         const prog = i / 14;
         let lx, ly;
 
-        // 【滑らかな配分】
-        // 0-2: 垂直 / 3-7: 円弧 / 8-14: 直線
         if (prog < 0.2) { 
             lx = sideMargin - offset;
-            ly = (h - footerHeight) - (prog / 0.2) * vLen;
+            ly = (h - footerHeight) - (prog / 0.2) * ((h - footerHeight) - vLimit);
         } else if (prog < 0.5) { 
             const p = (prog - 0.2) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
@@ -407,7 +414,8 @@ function drawTacho(rpm) {
             ly = vLimit + Math.sin(theta) * (rad + offset);
         } else { 
             const p = (prog - 0.5) / 0.5;
-            lx = (sideMargin + rad) + p * hLen;
+            // rLimit に向かって等間隔に配置
+            lx = (sideMargin + rad) + p * (rLimit - (sideMargin + rad));
             ly = topMargin - offset;
         }
 
