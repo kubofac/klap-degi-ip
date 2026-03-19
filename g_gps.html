@@ -333,38 +333,38 @@ function drawTacho(rpm) {
     const segments = 100;
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- レイアウト調整：数値を外側に置くための余白確保 ---
-    const footerHeight = 65;  
-    const sideMargin = 95;    // 【重要】0〜2を外側に置くため、さらに右へ寄せ
-    const topMargin = 85;     // 8〜14を外側に置くため、上端を空ける
+    // --- 【重要】iPhone 8の幅(375px)に合わせた極小マージン設計 ---
+    const footerHeight = 60;  
+    const sideMargin = 45;    // 左端の数値をギリギリに寄せる
+    const topMargin = 70;     // 上端の数値をギリギリに寄せる
     
-    // カーブをきつく（半径 160px）して、左側のスペースを稼ぐ
-    const curveRadius = 160; 
+    // 半径を小さくして、左側でサッと曲がらせる（右への直線を長く確保）
+    const curveRadius = 100; 
     const barWidth = 42; 
 
     for (let i = 0; i <= segments; i++) {
         const prog = i / segments;
         let x, y, ang;
 
-        // 垂直 20%、カーブ 30%、水平 50%
-        if (prog < 0.2) {
-            const p = prog / 0.2;
+        // 垂直 15%、カーブ 25%、水平 60% (水平を一番長くする)
+        if (prog < 0.15) {
+            const p = prog / 0.15;
             x = sideMargin;
             y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + curveRadius));
             ang = 0;
         } 
-        else if (prog < 0.5) {
-            const p = (prog - 0.2) / 0.3;
+        else if (prog < 0.4) {
+            const p = (prog - 0.15) / 0.25;
             const theta = Math.PI + (p * Math.PI / 2);
             x = sideMargin + curveRadius + Math.cos(theta) * curveRadius;
             y = (topMargin + curveRadius) + Math.sin(theta) * curveRadius;
             ang = (p * Math.PI / 2);
         } 
         else {
-            const p = (prog - 0.5) / 0.5;
-            // 14のはみ出し防止：右端に45px確保
+            const p = (prog - 0.4) / 0.6;
+            // 右端の「14」がギリギリ残る位置（w - 30）まで伸ばす
             const startX = sideMargin + curveRadius;
-            const endX = w - 45; 
+            const endX = w - 30; 
             x = startX + p * (endX - startX);
             y = topMargin;
             ang = Math.PI / 2;
@@ -374,32 +374,29 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = `italic 900 30px Arial`; 
+            ctx.font = `italic 900 28px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
             let lx = x, ly = y;
             const num = Math.round((i / segments) * 14);
-            const offset = 60; // バーの「外側」へ飛ばす距離
+            const offset = 45; // 太いバーの外側へ
             
-            if (prog < 0.2) {
-                // 垂直部分：左（外側）へ
+            if (prog < 0.15) {
                 lx -= offset; 
             }
-            else if (prog >= 0.5) {
-                // 水平部分：上（外側）へ
+            else if (prog >= 0.4) {
                 ly -= offset; 
             }
             else { 
-                // カーブ部分：弧の「外側」へ
-                const theta = Math.PI + ((prog - 0.2) / 0.3 * Math.PI / 2);
+                const theta = Math.PI + ((prog - 0.15) / 0.25 * Math.PI / 2);
                 lx = sideMargin + curveRadius + Math.cos(theta) * (curveRadius + offset);
                 ly = (topMargin + curveRadius) + Math.sin(theta) * (curveRadius + offset);
             }
             
-            // 画面端ガード：0や14が画面外に消えないように
-            const finalLx = Math.min(w - 25, Math.max(25, lx));
-            const finalLy = Math.max(30, ly);
+            // 画面端からはみ出さないよう最終調整
+            const finalLx = Math.min(w - 20, Math.max(20, lx));
+            const finalLy = Math.max(25, ly);
             
             ctx.fillText(num, finalLx, finalLy);
             ctx.restore();
