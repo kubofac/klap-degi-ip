@@ -13,13 +13,12 @@
         #dashboard { position: relative; display: flex; flex-direction: column; height: 100dvh; width: 100vw; padding-top: env(safe-area-inset-top); }
 #canvas {
     position: fixed;
+    top: 0;
     left: 0;
-    bottom: 50px;    /* フッターボタンのすぐ上 */
-    width: 100vw;    /* 画面幅いっぱい */
-    height: auto;    /* アスペクト比維持 */
-    z-index: 100;
-    pointer-events: none;
-    background: transparent; /* 背景を透明に（下の文字が見えるように） */
+    width: 100vw;
+    height: 100vh;
+    z-index: 5;
+    pointer-events: none; /* 下のボタンが押せるようにする */
 }
 
         .main-ui-container {
@@ -321,38 +320,54 @@ function tick() {
 
 // --- 4. 描画・UI制御 ---
 function drawTacho(rpm) {
-    const canvas = document.getElementById('canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    const cw = 800;
-    const ch = 400; // 高さを400に設定
-    ctx.clearRect(0, 0, cw, ch);
+    // 1. デバイスの画面幅と高さをリアルタイムで取得
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    
+    // Canvasの解像度をデバイスの画面サイズにピッタリ合わせる
+    // これにより「中央で止まる」「位置がズレる」を物理的に防ぎます
+    canvas.width = w;
+    canvas.height = h;
+    
+    ctx.clearRect(0, 0, w, h);
     
     const segments = 75;
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- レイアウト固定値（ここを調整して高さを変える） ---
-    const rad = 160;      // 半径（少し大きくして視認性をアップ）
-    const sX = 30;       // 左の余白
-    const bY = ch - 20;  // キャンバスの「底」から20px上。ここがメーターの起点。
-    const hY = bY - rad; // 14000回転までの水平ラインの高さ
+    // --- 【重要】高さの基準を「フッターのすぐ上」に強制固定 ---
+    const footerHeight = 60; // 下部ボタンエリアの高さ
+    const bottomBase = h - footerHeight - 10; // ボタンの10px上が起点
+
+    // 2. 半径を「画面の高さ」ではなく「固定ピクセル」にする
+    // これでAQUOSで中央まで浮き上がるのを防ぎます
+    const rad = 140; 
+    
+    // 3. 水平ライン（直線部分）の高さを「底辺から半径分上」に固定
+    // これで SPEED パネルの真上を通るようになります
+    const hY = bottomBase - rad; 
+    const sX = 20; // 左端の余白
 
     const curveEnd = 25;
-    const barWidth = 10;
-    const barLength = 35;
+    const barWidth = 6; 
+    const barLength = 30;
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
         
         if (i <= curveEnd) {
+            // 【カーブ部分】左下から左上へ
             prog = i / curveEnd;
             ang = Math.PI + (prog * (Math.PI / 2));
             x = sX + rad + Math.cos(ang) * rad;
             y = hY + rad + Math.sin(ang) * rad;
         } else {
+            // 【直線部分】左上から右端へ
             prog = (i - curveEnd) / (segments - curveEnd);
-            x = (sX + rad) + (prog * (cw - (sX + rad + 40)));
+            // 画面の右端（w * 0.95）までしっかり伸ばす
+            x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
         }
@@ -361,12 +376,12 @@ function drawTacho(rpm) {
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            ctx.font = "italic 900 32px Arial"; 
+            ctx.font = `italic 900 ${rad * 0.22}px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 【重要】labelDistをrad * 0.95にして、バーに極限まで密着
-            const labelDist = rad * 0.95;
+            // 数字をバーに極限まで密着（重なる直前）
+            const labelDist = rad * 0.92;
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
             
@@ -387,6 +402,9 @@ function drawTacho(rpm) {
             ctx.restore();
         }
     }
+    // 数値表示の更新
+    const rpmValDisp = document.getElementById('rpm_val');
+    if(rpmValDisp) rpmValDisp.textContent = Math.floor(rpm);
 }
 
 function updateButtonColors() {
