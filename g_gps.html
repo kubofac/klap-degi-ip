@@ -314,34 +314,38 @@ function tick() {
 function drawTacho(rpm) {
     if (!canvas.width || !canvas.height) return;
     
+    // 画面サイズ（CSSピクセル）の取得
     const w = window.innerWidth;
-    const h = window.innerHeight - 60;
+    const h = window.innerHeight - 45; // footer分を計算
     
     ctx.clearRect(0, 0, w, h);
     
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
     
-    // --- レイアウトの基準値を修正 ---
-    const sX = w * 0.08;       // 左端の余白を少し増やす
-    const hY = h * 0.22;       // 上部の水平ライン高さ
+    // --- レイアウトの基準値を画面比率に合わせて再定義 ---
+    // 半径を画面の高さと幅の小さい方に合わせ、iPhone 8でもはみ出さないようにする
+    const rad = Math.min(w * 0.32, h * 0.60); 
     
-    // 半径(rad)を「画面横幅」と「画面高さ」の小さい方を基準にする (iPhone 8対策)
-    // これにより、数字が画面外に押し出されるのを防ぎます
-    const rad = Math.min(w * 0.35, h * 0.55); 
+    // 左下の開始点（iPhone 8で左下に配置するための固定オフセット）
+    const sX = 30; 
+    const bY = h * 0.88; 
     
-    // バーの開始位置（縦方向）
-    const bY = hY + rad;      
+    // 上部の水平ライン高さ
+    const hY = bY - rad; 
 
+    // カーブと直線の切り替え点（iPhone 8の16:9で歪まない比率）
     const curveEnd = 30; 
-    const barWidth = w * 0.008; 
-    const barLength = rad * 0.25; // バーの長さも半径に比例させる
+
+    // バーの太さを画面幅の0.6%に固定（iPhone 8とAQUOSで見た目を統一）
+    const barWidth = w * 0.006; 
+    const barLength = rad * 0.22;
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
         
         if (i <= curveEnd) {
-            // 左下から左上へのカーブ
+            // 左下から左上への円弧
             prog = i / curveEnd;
             ang = Math.PI + (prog * (Math.PI / 2));
             x = sX + rad + Math.cos(ang) * rad;
@@ -349,22 +353,20 @@ function drawTacho(rpm) {
         } else {
             // 左上から右への直線
             prog = (i - curveEnd) / (segments - curveEnd);
-            x = (sX + rad) + (prog * (w * 0.92 - (sX + rad)));
+            x = (sX + rad) + (prog * (w * 0.94 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
         }
 
-        // --- 数字ラベルの描画位置を修正 ---
+        // --- 数字ラベルの描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
             ctx.fillStyle = i < active ? "#fff" : "#444";
-            // 文字サイズを少し小さく調整
             ctx.font = `italic bold ${Math.round(rad * 0.18)}px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 数字を配置する距離（バーの内側：半径の約65%の位置）
-            // これで画面内に確実に収めます
+            // 数字をバーの内側（半径の65%の位置）に配置し、画面外への突き抜けを防止
             const labelDist = rad * 0.65; 
             
             ctx.fillText(
@@ -375,7 +377,7 @@ function drawTacho(rpm) {
             ctx.restore();
         }
 
-        // バーの描画
+        // --- バーの描画 ---
         if (i < segments) {
             const currentRpmVal = (i / segments) * 14000;
             if (i < active) {
@@ -389,6 +391,7 @@ function drawTacho(rpm) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
+            // 常に均一な barWidth で長方形を描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
@@ -465,32 +468,33 @@ document.getElementById('reloadBtn').onclick = () => {
 };
 
 // 1. 関数として定義
+// デバイスピクセル比を考慮したリサイズ処理
+// デバイスピクセル比を考慮したリサイズ処理
 function handleResize() {
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = window.innerWidth;
-    const displayHeight = window.innerHeight - 60;
-    
-    // 実解像度の設定（ボケ防止）
+    const displayHeight = window.innerHeight;
+
+    // キャンバスの実解像度をセット（iPhone/AQUOSのボケ・歪み防止）
     canvas.width = displayWidth * dpr;
     canvas.height = displayHeight * dpr;
-    
-    // 表示サイズの設定
-    canvas.style.width = displayWidth + 'px';
-    canvas.style.height = displayHeight + 'px';
-    
-    // 描画コンテキストのリセットとスケーリング
+
+    // 描画コンテキストをスケーリング
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
     ctx.scale(dpr, dpr);
+
+    // CSS上の表示サイズを固定
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
 }
 
-// 2. イベントに紐付け（これまでの window.onresize は消してOK）
+// イベント紐付け
 window.onresize = handleResize;
 
-// 3. 起動時の処理
 window.onload = () => { 
-    handleResize(); // ここで最初に画面サイズを確定させる
+    handleResize(); // 起動時にサイズを確定
     
-    // --- 以下、既存の localStorage 読み込み処理など ---
+    // localStorageからの読み込み（既存のコードと同じ）
     const p1a = localStorage.getItem('startLineP1Lat');
     if (p1a) {
         LAP_LINE_P1 = { lat: parseFloat(p1a), lon: parseFloat(localStorage.getItem('startLineP1Lon')) };
@@ -498,7 +502,7 @@ window.onload = () => {
         pulseCount = parseInt(localStorage.getItem('pl1')) || 1;
     }
     
-    // アニメーションループ開始
+    // 描画ループの開始
     (function r(){ 
         drawTacho(currentRPM); 
         requestAnimationFrame(r); 
