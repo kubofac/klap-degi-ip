@@ -315,32 +315,34 @@ function drawTacho(rpm) {
     if (!canvas.width || !canvas.height) return;
     
     const w = window.innerWidth;
-    const h = window.innerHeight - 45; // footerの高さを正確に引く
+    // 画面の高さからフッター（45px）と余裕分を引いた「描画可能底辺」
+    const h = window.innerHeight - 50; 
     
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, w, h + 50);
     
     const segments = 75; 
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- 【重要】高さを比率ではなく「ピクセル固定」にする ---
+    // --- 【重要】全ての数値を「px（ピクセル）」で固定 ---
     
-    // 1. 半計を固定（数字が離れないよう、小さめの120pxに設定）
-    const rad = 120; 
+    // 1. メーターの「高さ（半径）」を110pxに固定
+    // これを小さくすることで、AQUOSで画面中央まで上がるのを防ぎます
+    const rad = 110; 
     
-    // 2. 開始位置を「ボタンの5px上」に強制固定
-    // これでiPhone 8が浮くのを防ぎ、AQUOSのはみ出しを防ぎます
+    // 2. 開始位置を「画面の底（ボタンのすぐ上）」に強制
+    // iPhone 8で「TOTAL」の下にならないよう、底辺(h)からさらに5px上に設定
     const sX = 15; 
     const bY = h - 5; 
 
-    // 3. 水平ラインの高さを「下から125px地点」に固定
-    // これでSPEED等の枠のすぐ上を通るようになります
+    // 3. 水平ラインの高さを決定（底辺から半径分上がった場所）
+    // ここが SPEED パネルの真上を通るルートになります
     const hY = bY - rad; 
 
     const curveEnd = 28; 
 
-    // 4. 太さを8pxに固定
+    // 4. バーの太さを均一にするため、絶対値で指定
     const barWidth = 8; 
-    const barLength = 30; 
+    const barLength = 25; 
 
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
@@ -352,7 +354,7 @@ function drawTacho(rpm) {
             y = hY + rad + Math.sin(ang) * rad;
         } else {
             prog = (i - curveEnd) / (segments - curveEnd);
-            // 右端（画面の95%）までしっかり伸ばす
+            // 横幅は画面の95%まで使う
             x = (sX + rad) + (prog * (w * 0.95 - (sX + rad)));
             y = hY;
             ang = 1.5 * Math.PI;
@@ -361,22 +363,22 @@ function drawTacho(rpm) {
         // --- 数字（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
-            ctx.fillStyle = i < active ? "#fff" : "#666";
-            ctx.font = `italic 900 22px Arial`; 
+            ctx.fillStyle = i < active ? "#fff" : "#555";
+            ctx.font = `italic 900 20px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 【重要】数字をバーに「重ねる」設定
-            // 距離を半径の 0.9 倍（ほぼバーの上）にして距離を詰め、
-            // バーが数字に押し出されないように独立した座標で描画します
-            const labelDist = rad * 0.92; 
+            // 【重要】数字とバーの距離をゼロにする
+            // labelDist を半径(rad)とほぼ同じ「0.98」に設定して重ねます
+            // これで「数字だけが下に下がる」現象を物理的に封じ込めます
+            const labelDist = rad * 0.98; 
             
             const lx = x + Math.cos(ang) * labelDist;
             const ly = y + Math.sin(ang) * labelDist;
             
-            // 画面外（左・下）へのはみ出し防止
-            const safeLx = Math.max(15, lx);
-            const safeLy = Math.min(h - 10, ly);
+            // 画面端でのカット防止
+            const safeLx = Math.max(12, lx);
+            const safeLy = Math.min(h - 5, ly);
             
             ctx.fillText(Math.round((i / segments) * 14), safeLx, safeLy);
             ctx.restore();
@@ -385,18 +387,12 @@ function drawTacho(rpm) {
         // --- バー（目盛り）の描画 ---
         if (i < segments) {
             const currentRpmVal = (i / segments) * 14000;
-            if (i < active) {
-                if (currentRpmVal >= 12500) ctx.fillStyle = "var(--hrc-red)";
-                else if (currentRpmVal >= 8000) ctx.fillStyle = "var(--hrc-blue)";
-                else ctx.fillStyle = "#FFFFFF";
-            } else {
-                ctx.fillStyle = "#222";
-            }
+            ctx.fillStyle = (i < active) ? (currentRpmVal >= 12500 ? "var(--hrc-red)" : (currentRpmVal >= 8000 ? "var(--hrc-blue)" : "#FFF")) : "#222";
 
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // 常に均一な 8px で描画
+            // 長方形を描画（均一な太さ 8px を維持）
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
