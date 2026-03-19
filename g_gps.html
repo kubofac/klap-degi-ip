@@ -344,15 +344,21 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- 1. レイアウト設定（レスポンシブR計算） ---
+    // --- 1. 【AQUOS特化：超ダイナミックR計算】 ---
+    // iPhone 8 (375px) は R=85 固定（右端突き抜けを最優先）
+    // AQUOS (412px〜) は R=140以上（画面の広さを活かした優雅な曲線）
     let rad = 85; 
-    if (w > 375) rad = Math.min(120, 85 + (w - 375) * 0.5);
+    if (w > 375) {
+        // 幅の差分に対して1.8倍の比率でRを拡大。
+        // これによりAQUOSでは「カクッ」ではなく「ふわっ」と大きく回ります。
+        rad = Math.min(160, 85 + (w - 375) * 1.8);
+    }
 
-    const sideMargin = 50;   // 開始位置を少し左寄りに固定
-    const topMargin = 65;    
+    const sideMargin = 45;   
+    const topMargin = 60;    // Rが大きくなる分、少しだけ上に余裕を持たせました
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
-    const rLimit = w;        // 右端（突き抜け保証）
+    const rLimit = w; 
     const vLimit = topMargin + rad; 
 
     const vLen = footerHeight - vLimit; 
@@ -361,6 +367,7 @@ function drawTacho(rpm) {
     const totalLen = vLen + cLen + hLen;
     const activeLen = (rpm / 14000) * totalLen;
 
+    // パス定義（Stroke専用にすることで内側の塗りつぶしを完全に防止）
     function createPath(c) {
         c.beginPath();
         c.lineCap = "butt";
@@ -371,86 +378,75 @@ function drawTacho(rpm) {
         c.lineTo(rLimit, topMargin);
     }
 
-   // --- 2. 描画ステップ1：ベースのグレー（背景） ---
+    // --- 2. 描画（ベース＆カラー） ---
     ctx.save();
     createPath(ctx);
-    ctx.strokeStyle = "#222222";
+    ctx.strokeStyle = "#222222"; // ベースグレー
     ctx.lineWidth = barWeight;
     ctx.stroke();
     ctx.restore();
 
-    // --- 3. 描画ステップ2：カラーバー（修正：パスの閉じを防止） ---
+    // カラーバー（白・青・赤の順でStroke描画）
     ctx.save();
     createPath(ctx);
     ctx.lineWidth = barWeight;
-    
-    // 【重要】ここで「線そのもの」をパスとして確定させ、内側の塗りつぶしを防ぐ
-    // setLineDashで現在のRPMまでを指定
     ctx.setLineDash([activeLen, totalLen]);
-    ctx.strokeStyle = "#FFFFFF"; // まずはベースの「白」で線を引く
-    ctx.stroke(); 
-
-    // 青・赤の「重ね塗り」も、塗りつぶし(fillRect)ではなく、
-    // 同じパスに対して「線のズレ（DashOffset）」を使って上書きします。
-    if (rpm >= 6000) {
-        ctx.save();
-        ctx.beginPath();
-        createPath(ctx);
-        const blueStart = totalLen * (6000 / 14000);
-        // 6000rpmから現在のactiveLenまでの距離だけを描画
-        if (activeLen > blueStart) {
-            ctx.setLineDash([activeLen - blueStart, totalLen]);
-            ctx.lineDashOffset = -blueStart;
-            ctx.strokeStyle = "#0055FF";
-            ctx.lineWidth = barWeight + 1; // 隙間防止
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-
-    if (rpm >= 11000) {
-        ctx.save();
-        ctx.beginPath();
-        createPath(ctx);
-        const redStart = totalLen * (11000 / 14000);
-        if (activeLen > redStart) {
-            ctx.setLineDash([activeLen - redStart, totalLen]);
-            ctx.lineDashOffset = -redStart;
-            ctx.strokeStyle = "#FF0000";
-            ctx.lineWidth = barWeight + 2; // 隙間防止
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.stroke();
     ctx.restore();
 
-    // --- 4. 描画ステップ3：250rpm刻みのセグメント（上書き） ---
+    const blueStart = totalLen * (6000 / 14000);
+    if (activeLen > blueStart) {
+        ctx.save();
+        createPath(ctx);
+        ctx.lineWidth = barWeight + 1;
+        ctx.setLineDash([activeLen - blueStart, totalLen]);
+        ctx.lineDashOffset = -blueStart;
+        ctx.strokeStyle = "#0055FF";
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    const redStart = totalLen * (11000 / 14000);
+    if (activeLen > redStart) {
+        ctx.save();
+        createPath(ctx);
+        ctx.lineWidth = barWeight + 2;
+        ctx.setLineDash([activeLen - redStart, totalLen]);
+        ctx.lineDashOffset = -redStart;
+        ctx.strokeStyle = "#FF0000";
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // --- 3. 250rpm刻みの高精度セグメント（黒スリット） ---
     ctx.save();
     createPath(ctx);
-    ctx.lineWidth = barWeight + 2; // バーを覆う太さ
-    ctx.strokeStyle = "#000000";    // 黒い隙間
+    ctx.lineWidth = barWeight + 10;
+    ctx.strokeStyle = "#000000";
     
-    // 250rpm目盛り
-    const totalSegments = 56;
-    const sWidth = 2; // 隙間の太さ
-    const sGap = (totalLen / totalSegments) - sWidth;
+    // 250rpm目盛り (56分割)
+    const sWidth = 1.8; 
+    const sGap = (totalLen / 56) - sWidth;
     ctx.setLineDash([sWidth, sGap]);
     ctx.lineDashOffset = sWidth / 2;
     ctx.stroke();
 
-    // 1000rpm目盛り（少し太く）
+    // 1000rpm目盛り (14分割)
     const mWidth = 4;
     const mGap = (totalLen / 14) - mWidth;
     ctx.setLineDash([mWidth, mGap]);
     ctx.lineDashOffset = mWidth / 2;
     ctx.stroke();
     ctx.restore();
-    // --- 5. 数値（ラベル）配置 ---
+
+    // --- 4. 数値（ラベル） ---
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#666"; 
-    const offset = 45; 
+    // Rが大きくなった際、数字がバーに被らないようオフセットを動的に
+    const offset = 45 + (rad - 85) * 0.1; 
 
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
