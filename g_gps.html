@@ -324,7 +324,7 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // 画面サイズを取得
+    // 画面サイズを正確に取得
     const w = window.innerWidth;
     const h = window.innerHeight;
     canvas.width = w;
@@ -332,25 +332,25 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- 【動的R計算ロジック】 ---
-    // 画面幅の25%〜28%程度をRに割り当てると、どの端末でも黄金比になります
-    // iPhone 8 (375px) => rad ≒ 95〜100
-    // AQUOS (400px+)  => rad ≒ 110〜120
-    const rad = Math.min(130, w * 0.26); 
-
-    const sideMargin = 30;   // 左端
-    const topMargin = 65;    // SPEEDの数値の上
+    // --- iPhone 8 (375px) 全幅走破ロジック ---
+    // 左端を20pxまで詰めて、右側への「助走」を最大化
+    const sideMargin = 20;   
+    const topMargin = 65;    
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
 
-    // 右端を「画面幅の95%」に設定することで、必ず右へ突き抜けさせます
-    const rLimit = w * 0.95;   
+    // 【解決の鍵】Rを画面幅の「22%」に。iPhone 8なら約82px。
+    // これにより、画面左側の早い段階で曲がりきり、右への直線を長く確保します。
+    const rad = w * 0.22; 
+    
+    // 右端を「w - 5」に設定。ほぼ画面の右縁ギリギリまで線を引きます。
+    const rLimit = w - 5;   
     const vLimit = topMargin + rad; 
 
     // 1. 各セクションの長さを計算
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rLimit - (sideMargin + rad); 
+    const hLen = rLimit - (sideMargin + rad); // これでiPhone 8でも150px以上の直線が確保されます
     const totalLen = vLen + cLen + hLen;
     const activeLen = (rpm / 14000) * totalLen;
 
@@ -361,7 +361,7 @@ function drawTacho(rpm) {
         c.moveTo(sideMargin, footerHeight);
         c.lineTo(sideMargin, vLimit);
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        c.lineTo(rLimit, topMargin);
+        c.lineTo(rLimit, topMargin); // 画面右端(w-5)まで到達
     }
 
     // 2. 背景（グレー）
@@ -396,21 +396,22 @@ function drawTacho(rpm) {
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.1) { // 垂直
+        // 配分：0-1(垂直) / 2-4(円弧) / 5-14(ロング直線)
+        if (prog < 0.08) { 
             lx = sideMargin - offset;
-            ly = footerHeight - (prog / 0.1) * vLen;
-        } else if (prog < 0.4) { // 円弧
-            const p = (prog - 0.1) / 0.3;
+            ly = footerHeight - (prog / 0.08) * vLen;
+        } else if (prog < 0.3) { 
+            const p = (prog - 0.08) / 0.22;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { // 直線
-            const p = (prog - 0.4) / 0.6;
+        } else { 
+            const p = (prog - 0.3) / 0.7;
             lx = (sideMargin + rad) + p * hLen;
             ly = topMargin - offset;
         }
         
-        // 画面端の数値を保護
+        // 画面外への突き抜けを防止（特に0と14）
         const finalX = Math.max(15, Math.min(w - 15, lx));
         ctx.fillText(i, finalX, ly);
     }
