@@ -323,6 +323,7 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
+    // 画面サイズを再取得
     const w = window.innerWidth;
     const h = window.innerHeight;
     canvas.width = w;
@@ -330,34 +331,34 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
     
-    const segments = 90; // セグメントを増やして密度をアップ
+    const segments = 100; // 密度をさらに上げて滑らかに
     const active = Math.floor((rpm / 14000) * segments);
 
-    // --- レイアウト設定（微調整） ---
+    // --- レイアウト微調整：iPhone 8の「1カラム目切れ」を阻止 ---
     const footerHeight = 60;  
-    const sideMargin = 55;    // 数字を外側に置くため少し広めに
-    const topMargin = 65;     // SPEED表示との兼ね合いで調整
+    const sideMargin = 50;    // 左端の数字用スペース
+    const topMargin = 70;     // 上端の数字用スペース
     
-    // カーブをさらに緩やかに (180px -> 220px)
-    const curveRadius = 220; 
+    // カーブをさらに大きく、緩やかに (220px -> 250px)
+    const curveRadius = 250; 
 
-    // 【修正】バーをさらに倍の太さに (18px -> 36px)
-    const barWidth = 36; 
-    const barLength = 45; // バーの「厚み」
+    // 超極太設定 (36px -> 42px)
+    const barWidth = 42; 
+    const barLength = 50; 
 
     for (let i = 0; i <= segments; i++) {
         const prog = i / segments;
         let x, y, ang;
 
-        // 垂直 20%、カーブ 30%、水平 50%
-        if (prog < 0.2) {
-            const p = prog / 0.2;
+        // 垂直 15%、カーブ 35%、水平 50% （立ち上がりを早くして水平を長く確保）
+        if (prog < 0.15) {
+            const p = prog / 0.15;
             x = sideMargin;
             y = (h - footerHeight) - p * ((h - footerHeight) - (topMargin + curveRadius));
             ang = 0;
         } 
         else if (prog < 0.5) {
-            const p = (prog - 0.2) / 0.3;
+            const p = (prog - 0.15) / 0.35;
             const theta = Math.PI + (p * Math.PI / 2);
             x = sideMargin + curveRadius + Math.cos(theta) * curveRadius;
             y = (topMargin + curveRadius) + Math.sin(theta) * curveRadius;
@@ -365,8 +366,11 @@ function drawTacho(rpm) {
         } 
         else {
             const p = (prog - 0.5) / 0.5;
-            // 【重要】iPhone 8でも確実に端まで届くよう「w - 5」まで計算
-            x = (sideMargin + curveRadius) + p * (w - 5 - (sideMargin + curveRadius));
+            // 【重要】右端の計算から余計な引き算を排除
+            // 画面の「本当の右端(w)」からわずか2px手前まで描き切る
+            const startX = sideMargin + curveRadius;
+            const endX = w - 2; 
+            x = startX + p * (endX - startX);
             y = topMargin;
             ang = Math.PI / 2;
         }
@@ -374,48 +378,46 @@ function drawTacho(rpm) {
         // --- 数字（ラベル）の描画 ---
         if (i % 10 === 0 || i === segments) {
             ctx.save();
-            ctx.fillStyle = i < active ? "#fff" : "#555";
-            ctx.font = `italic 900 30px Arial`; 
+            ctx.fillStyle = i < active ? "#fff" : "#444";
+            ctx.font = `italic 900 32px Arial`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
-            // 数字をバーの「外側」に配置
             let lx = x, ly = y;
-            const offset = 55; // 太くなった分、数字をさらに外へ
+            const offset = 60; // 太くなった分、数字をさらに外へ
             
-            if (prog < 0.2) {
+            if (prog < 0.15) {
                 lx -= offset; 
             }
             else if (prog >= 0.5) {
                 ly -= offset; 
             }
             else { 
-                const theta = Math.PI + ((prog - 0.2) / 0.3 * Math.PI / 2);
+                const theta = Math.PI + ((prog - 0.15) / 0.35 * Math.PI / 2);
                 lx = sideMargin + curveRadius + Math.cos(theta) * (curveRadius + offset);
                 ly = (topMargin + curveRadius) + Math.sin(theta) * (curveRadius + offset);
             }
             
-            // 画面外へのはみ出しを防止しつつ描画
-            ctx.fillText(Math.round((i / segments) * 14), Math.max(20, lx), Math.max(25, ly));
+            // 数字が画面外へ消えないように最低限のガード
+            ctx.fillText(Math.round((i / segments) * 14), Math.max(25, lx), Math.max(30, ly));
             ctx.restore();
         }
 
         // --- バー（目盛り）の描画 ---
         if (i < segments) {
             const val = (i / segments) * 14000;
-            // 色分け（レッドゾーンはより鮮やかに）
             if (i < active) {
-                if (val >= 12500) ctx.fillStyle = "#FF0000";
-                else if (val >= 8000) ctx.fillStyle = "#0066FF";
+                if (val >= 12500) ctx.fillStyle = "#FF0000"; // HRC Red
+                else if (val >= 8000) ctx.fillStyle = "#0055FF"; // Racing Blue
                 else ctx.fillStyle = "#FFFFFF";
             } else {
-                ctx.fillStyle = "#222222";
+                ctx.fillStyle = "#1a1a1a"; // 暗めの背景
             }
 
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang); 
-            // 極太描画
+            // 超極太バーを描画
             ctx.fillRect(-barWidth / 2, -barLength / 2, barWidth, barLength);
             ctx.restore();
         }
