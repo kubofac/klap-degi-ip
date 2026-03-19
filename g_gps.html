@@ -324,7 +324,6 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // 【重要】画面サイズを「100%」で取得し直す
     const w = window.innerWidth;
     const h = window.innerHeight;
     canvas.width = w;
@@ -332,30 +331,31 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- レイアウトの再構築 ---
+    // --- レイアウト設定：高さを「SPEEDの上」へ引き上げ ---
     const sideMargin = 40;  
-    const barWeight = 48;   // さらに太く（48px）
+    const barWeight = 48;   
     
-    // 【解決：高さ】画面中央付近にするため、topMarginを画面高さの40%に設定
-    const topMargin = h * 0.4; 
-    const footerHeight = h * 0.8; // 下端の位置
+    // 【解決：高さ】topMarginを小さく（＝上に配置）
+    // iPhone 8でSPEED表示に被らないギリギリの高さ（上から約60px）に設定
+    const topMargin = 65; 
+    const footerHeight = h * 0.85; // 下端の位置を少し下げて全体の高低差を出す
 
-    // 【解決：横いっぱい】右端を画面端マイナス10px（ほぼゼロ）に設定
+    // 【解決：右端】画面の右端ギリギリまで
     const rLimit = w - 10; 
     
     // 滑らかなR（半径）
-    const rad = 120; 
+    const rad = 130; 
+    // 円弧が始まる高さ（垂直が終わる地点）
     const vLimit = topMargin + rad; 
 
-    // パスを共通化
     function createPath(c) {
         c.beginPath();
         c.lineCap = "butt";
-        c.lineJoin = "round"; // 角を滑らかに
+        c.lineJoin = "round";
         c.moveTo(sideMargin, footerHeight);
-        c.lineTo(sideMargin, vLimit);
+        c.lineTo(sideMargin, vLimit); // ここで高く立ち上がる
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        c.lineTo(rLimit, topMargin);
+        c.lineTo(rLimit, topMargin); // SPEEDの上を水平に突き抜ける
     }
 
     // 1. 背景（グレー）
@@ -385,34 +385,32 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 数値（ラベル）：【解決：バーのすぐ近くに配置】
-    ctx.font = "italic 900 24px Arial"; // 少し小さくして密度を上げる
+    // 3. 数値（ラベル）：バーに近接
+    ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "#666"; // 常にグレー
+    ctx.fillStyle = "#666"; // 常にグレー固定
 
-    // バーからの距離（offset）を「55」から「42」に縮めてバーに近づける
-    const offset = 42; 
+    const offset = 40; // バーのすぐ近くに配置
 
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
 
-        if (prog < 0.1) { // 垂直
+        if (prog < 0.15) { // 垂直（0〜2付近）
             lx = sideMargin - offset;
-            ly = footerHeight - (prog / 0.1) * vLen;
-        } else if (prog < 0.4) { // 円弧
-            const p = (prog - 0.1) / 0.3;
+            ly = footerHeight - (prog / 0.15) * vLen;
+        } else if (prog < 0.45) { // 円弧（3〜6付近）
+            const p = (prog - 0.15) / 0.3;
             const theta = Math.PI + (p * Math.PI / 2);
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { // 直線
-            const p = (prog - 0.4) / 0.6;
+        } else { // 直線（7〜14）
+            const p = (prog - 0.45) / 0.55;
             lx = (sideMargin + rad) + p * hLen;
             ly = topMargin - offset;
         }
         
-        // 画面端での数値切れを防止
         const finalX = Math.max(15, Math.min(w - 15, lx));
         ctx.fillText(i, finalX, ly);
     }
