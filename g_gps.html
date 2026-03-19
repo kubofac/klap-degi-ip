@@ -344,22 +344,25 @@ function drawTacho(rpm) {
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- 【動的R計算ロジック】 ---
-    // 画面幅が広い（AQUOSなど）ほど、Rを大きくして緩やかにします。
-    // iPhone 8 (375px)  => rad ≒ 95 (突き抜け優先)
-    // AQUOS (412px等)   => rad ≒ 115 (優雅なカーブ)
-    // 大型スマホ (430px) => rad ≒ 125 
-    const rad = Math.min(130, w * 0.26 + 10); 
+    // --- 【進化した動的R計算】 ---
+    // iPhone 8 (375px)  => rad ≒ 95  (直線距離を確保して右へ突き抜け)
+    // AQUOS (412px等)   => rad ≒ 130 (緩やかで美しい大きなカーブ)
+    // Xperia等 (430px+) => rad ≒ 145 (さらにダイナミックに)
+    
+    // 計算式：375pxを基準に、増えた幅の分だけRを大きく増幅させる
+    const baseW = 375;
+    const diff = Math.max(0, w - baseW);
+    const rad = 95 + (diff * 0.8); // 幅が10px増えるごとにRが8px大きくなる
 
-    const sideMargin = 45;   // 開始位置（少し左へ戻しました）
+    const sideMargin = 45;   
     const topMargin = 65;    
     const footerHeight = h * 0.85; 
     const barWeight = 48;   
 
-    const rLimit = w;        // 右端いっぱい
+    const rLimit = w; 
     const vLimit = topMargin + rad; 
 
-    // 距離計算（動的なradに基づいて再計算されるため、常に右端まで届きます）
+    // 距離計算（動的なradに完全に追従）
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
     const hLen = rLimit - (sideMargin + rad); 
@@ -372,6 +375,7 @@ function drawTacho(rpm) {
         c.lineJoin = "round";
         c.moveTo(sideMargin, footerHeight);
         c.lineTo(sideMargin, vLimit);
+        // この弧(arc)が、AQUOSでは大きく、iPhoneではコンパクトになります
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
         c.lineTo(rLimit, topMargin);
     }
@@ -397,7 +401,7 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 数値（ラベル）：動的なradに合わせて配置も自動計算
+    // 3. 数値（ラベル）：動的なRにピタッと沿うように配置
     ctx.font = "italic 900 24px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
