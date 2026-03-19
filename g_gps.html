@@ -337,30 +337,26 @@ function drawTacho(rpm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // ブラウザの表示領域の「真の全幅」を取得
-    const w = document.documentElement.clientWidth;
-    const h = document.documentElement.clientHeight;
-
-    // キャンバスの解像度を画面全体に強制同期
+    const w = window.innerWidth;
+    const h = window.innerHeight;
     canvas.width = w;
     canvas.height = h;
     
     ctx.clearRect(0, 0, w, h);
 
-    // --- iPhone 8 (375px) 1カラム目粉砕設定 ---
-    const sideMargin = 20;   
-    const topMargin = 60;    
-    const footerHeight = h * 0.82; 
-    const barWeight = 50;   
+    // --- レイアウト調整 ---
+    // 【解決：開始を右に寄せる】sideMarginを大きくして、数値との被りを回避
+    const sideMargin = 80;   
+    const topMargin = 65;    
+    const footerHeight = h * 0.85; 
+    const barWeight = 48;   
 
-    // 【解決の鍵】R（半径）を「70」まで絞る。
-    // Rが小さいほど、左側ですぐに曲がりきり、右側へ伸びる直線が「物理的に長く」なります。
-    const rad = 70; 
-    
-    // 右端を「画面幅(w)そのもの」に設定
-    const rLimit = w; 
+    // R（半径）を調整して、立ち上がりをよりタイトに
+    const rad = 85; 
+    const rLimit = w; // 右端いっぱい
     const vLimit = topMargin + rad; 
 
+    // 距離計算
     const vLen = footerHeight - vLimit; 
     const cLen = (Math.PI * rad) / 2;                 
     const hLen = rLimit - (sideMargin + rad); 
@@ -370,18 +366,17 @@ function drawTacho(rpm) {
     function createPath(c) {
         c.beginPath();
         c.lineCap = "butt";
-        c.lineJoin = "miter";
+        c.lineJoin = "round";
         c.moveTo(sideMargin, footerHeight);
         c.lineTo(sideMargin, vLimit);
         c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        // ここで画面の右端(w)まで一気に直線を引く
         c.lineTo(rLimit, topMargin);
     }
 
     // 1. 背景
     ctx.save();
     createPath(ctx);
-    ctx.strokeStyle = "#222"; 
+    ctx.strokeStyle = "rgba(34, 34, 34, 0.8)"; // 背面に回るので少し透過させてもOK
     ctx.lineWidth = barWeight;
     ctx.stroke();
     ctx.restore();
@@ -399,29 +394,36 @@ function drawTacho(rpm) {
     ctx.stroke();
     ctx.restore();
 
-    // 3. 数値：バーのすぐ外側
-    ctx.font = "italic 900 24px Arial";
+    // 3. 数値（ラベル）：バーの内側に配置して重なりを完全に回避
+    ctx.font = "italic 900 22px Arial";
     ctx.textAlign = "center";
-    ctx.fillStyle = "#555";
-    const offset = 42; 
+    ctx.fillStyle = "#888"; 
+
+    // offsetをマイナスにするとバーの「内側（右下側）」に数字が配置されます
+    // 重なりがひどい場合は、この数値を調整してください
+    const offset = 45; 
 
     for (let i = 0; i <= 14; i++) {
         const prog = i / 14;
         let lx, ly;
-        if (prog < 0.1) { 
+
+        if (prog < 0.12) { // 垂直
             lx = sideMargin - offset;
-            ly = footerHeight - (prog / 0.1) * vLen;
-        } else if (prog < 0.3) { 
-            const p = (prog - 0.1) / 0.2;
+            ly = footerHeight - (prog / 0.12) * vLen;
+        } else if (prog < 0.4) { // 円弧
+            const p = (prog - 0.12) / 0.28;
             const theta = Math.PI + (p * Math.PI / 2);
+            // バーの外側ではなく「内側」を通るように計算
             lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
             ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else { 
-            const p = (prog - 0.3) / 0.7;
-            lx = (sideMargin + rad) + p * (w - 20 - (sideMargin + rad));
+        } else { // 直線
+            const p = (prog - 0.4) / 0.6;
+            lx = (sideMargin + rad) + p * (w - 25 - (sideMargin + rad));
             ly = topMargin - offset;
         }
-        ctx.fillText(i, Math.max(15, Math.min(w - 15, lx)), ly);
+        
+        const finalX = Math.max(20, Math.min(w - 20, lx));
+        ctx.fillText(i, finalX, ly);
     }
 }
 function updateButtonColors() {
