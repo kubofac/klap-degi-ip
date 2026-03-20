@@ -64,79 +64,83 @@ canvas {
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
 /* iPhone 8 横画面：全体を右側に寄せ、重なりとはみ出しを同時に解決 */
 /* iPhone 8 横画面：ラップタイムを左に離し、全体をわずかに下げる */
+/* iPhone 8 横画面：ラップ履歴の「L」とタイムの重なりを物理的に分離 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：bottomを110pxから95pxに下げ、ボタンとの距離を微調整 */
+    /* 1. 全体コンテナ：右端に寄せ、パネル間の隙間をさらに詰める */
     .main-ui-container {
         position: absolute !important;
         right: 0px !important;
-        bottom: 95px !important; /* ★少し下げて落ち着かせました */
+        bottom: 95px !important; 
         width: auto !important;
         display: flex !important;
         flex-direction: row !important;
         justify-content: flex-end !important;
         align-items: flex-end !important;
-        padding-right: 10px !important;
-        gap: 5px !important; /* 全体の塊感を出すため隙間を最小に */
+        padding-right: 8px !important;
+        gap: 4px !important; /* パネル同士をほぼ密着させる */
     }
 
-    /* 2. ラップタイム表示部：履歴とはみ出さないよう「右マージン」を追加 */
+    /* 2. ラップタイム表示部：履歴パネルとの間に「絶対的な溝」を作る */
     #info-overlay {
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
-        /* ★ここが重要：履歴パネルとの間に15pxの固定の溝を作ります */
-        margin-right: 15px !important; 
-        max-width: 280px !important;
+        /* ★重要：履歴パネルの「L」が絶対に入り込めないよう右マージンを確保 */
+        margin-right: 25px !important; 
+        max-width: 260px !important;
     }
 
     #display1 {
         font-size: 17vh !important;
-        font-weight: 900 !important;
-        text-align: right !important;
         line-height: 0.8 !important;
         white-space: nowrap !important;
-        /* 文字が履歴の下に潜り込まないようシャドウを調整 */
-        text-shadow: 3px 3px 8px #000 !important;
+        text-shadow: 2px 2px 6px #000 !important;
     }
 
-    #rpm_val {
-        font-size: 8vh !important;
-        margin-bottom: 2px !important;
-    }
-
-    /* 3. ラップ履歴：幅を固定してタイム表示を邪魔させない */
+    /* 3. ラップ履歴：幅を極限まで絞り、Lとタイムを密着させる */
     #lap-panel {
-        width: 105px !important;
-        min-width: 105px !important;
-        max-height: 135px !important; /* 少し短くして下のボタンへの圧迫を軽減 */
+        width: 95px !important; /* 105pxから95pxへスリム化 */
+        min-width: 95px !important;
+        max-height: 135px !important;
         border: none !important;
         background: transparent !important;
         padding: 0 !important;
     }
 
-    #lap {
-        display: flex !important;
-        flex-direction: column !important;
-        border: none !important;
-    }
-
+    /* ラップ履歴の行設定 */
     .lap-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        width: 100% !important;
         font-size: 13px !important;
         padding: 3px 0 !important;
-        border-bottom: none !important; /* 下線を完全に排除 */
+        border-bottom: none !important;
         border-top: 1px solid rgba(255,255,255,0.1) !important;
+    }
+
+    /* 「L1」などの文字を左端に寄せ、タイムとの距離を稼ぐ */
+    .lap-row span:first-child {
+        min-width: 25px !important;
+        text-align: left !important;
+        color: var(--hrc-red); /* L番号を赤くして視認性向上 */
+    }
+
+    /* 履歴内のタイムを右端に寄せる */
+    .lap-row span:last-child {
+        flex: 1 !important;
+        text-align: right !important;
     }
 
     /* 4. SPEED / MAX / TEMP パネル（一番右） */
     .data-panel {
-        width: 75px !important; /* さらに少し細くして中央を空ける */
+        width: 75px !important;
         min-width: 75px !important;
         gap: 2px !important;
     }
 
     .val {
-        font-size: 28px !important; /* 縦幅節約のため微減 */
+        font-size: 28px !important;
         line-height: 0.85 !important;
     }
 }
