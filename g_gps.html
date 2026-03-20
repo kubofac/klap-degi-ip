@@ -62,115 +62,77 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 から AQUOS までの横画面最適化：縦長感の解消と高位置の維持 */
+/* iPhone 8 から AQUOS までの横画面最適化（完全分離版） */
 @media screen and (max-width: 960px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ */
-    .main-ui-container {
-        position: absolute !important;
-        top: 0; left: 0; right: 0; bottom: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        pointer-events: none !important;
-    }
-
-    /* 2. 右側（SPEED/MAX/TEMP）：微調整後の位置(65px) */
-    .data-panel {
-        position: absolute !important;
-        right: 12px !important;
-        top: 65px !important; 
-        width: 80px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 4px !important;
-        pointer-events: auto !important;
-    }
-
-    /* 3. 中央（ラップ履歴）：微調整後の位置(65px)と枠線なし */
-    #lap-panel {
-        position: absolute !important;
-        right: 110px !important; 
-        top: 65px !important;    
-        bottom: 35px !important; 
-        width: 115px !important;
-        border: 0px none transparent !important;
-        background: none !important;
-        display: flex !important;
-        flex-direction: column !important;
-        pointer-events: auto !important;
-    }
-
+    /* --- 1. 共通ベース（位置・枠線なし） --- */
+    .main-ui-container { position: absolute !important; top: 0; left: 0; right: 0; bottom: 0 !important; width: 100% !important; height: 100% !important; pointer-events: none !important; }
+    .data-panel { position: absolute !important; right: 12px !important; top: 65px !important; width: 80px !important; display: flex !important; flex-direction: column !important; gap: 4px !important; pointer-events: auto !important; }
+    #lap-panel { position: absolute !important; right: 110px !important; top: 65px !important; bottom: 35px !important; width: 115px !important; border: 0 !important; background: none !important; display: flex !important; flex-direction: column !important; pointer-events: auto !important; }
     #lap, .lap-row { border: 0 !important; outline: none !important; box-shadow: none !important; }
-    .lap-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important;
-        padding: 4px 0 !important;
-        font-size: 13px !important;
-    }
+    .lap-row { display: flex !important; justify-content: space-between !important; border-top: 1px solid rgba(255,255,255,0.1) !important; padding: 4px 0 !important; font-size: 13px !important; }
 
-    /* 4. 左側（RPM/ラップ/TOTAL）：あなたが指定した「高い位置(20px)」を固定 */
-    #info-overlay {
-        position: absolute !important;
-        right: 255px !important; 
-        top: 20px !important;   
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-end !important;
-        pointer-events: auto !important;
-    }
-
-    /* --- デフォルト設定（iPhone 8 用） --- */
-    #display1 {
-        font-size: 18vh !important;
-        line-height: 0.8 !important;
-        transform: scaleX(0.95) !important; /* iPhoneは少しスリムに */
-        text-shadow: 2px 2px 8px #000 !important;
-        white-space: nowrap !important;
-        font-weight: 900 !important;
-    }
-
-    #rpm_val {
-        font-size: 9vh !important;
-        line-height: 0.9 !important;
-        margin-bottom: 10px !important;
-        font-weight: 900 !important;
-    }
-
-    #display { font-size: 3.5vh !important; margin-bottom: -5px !important; }
-
-    /* --------------------------------------------------
-       【AQUOS/広画角デバイス特化】縦長感を打ち消すワイド設定
-       -------------------------------------------------- */
-    @media screen and (min-width: 391px) {
+    /* --- 2. 【条件A】iPhone 8 専用：画面幅 390px 以下のときだけ適用 --- */
+    @media screen and (max-width: 390px) {
+        #info-overlay {
+            position: absolute !important;
+            right: 255px !important; /* iPhoneでのベスト位置 */
+            top: 20px !important;   /* iPhoneでのベスト高さ */
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-end !important;
+            pointer-events: auto !important;
+        }
         #display1 {
-            /* 縦長を抑えるため高さを下げ、横に1.15倍引き伸ばす */
-            font-size: 16vh !important; 
-            transform: scaleX(1.15) !important; 
+            font-size: 18vh !important;
+            transform: scaleX(0.95) !important; /* iPhone用のスリム幅を強制 */
+            line-height: 0.8 !important;
+            text-shadow: 2px 2px 8px #000 !important;
+            font-weight: 900 !important;
+        }
+        #rpm_val {
+            font-size: 9vh !important;
+            transform: scaleX(0.95) !important;
+            line-height: 0.9 !important;
+            margin-bottom: 10px !important;
+        }
+    }
+
+    /* --- 3. 【条件B】AQUOS 専用：画面幅 391px 以上のときだけ適用 --- */
+    @media screen and (min-width: 391px) {
+        #info-overlay {
+            position: absolute !important;
+            right: calc(265px + 2vw) !important; /* 広画面用の逃がし */
+            top: 20px !important;                /* 高さはiPhoneと同じ20px */
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-end !important;
+            pointer-events: auto !important;
+        }
+        #display1 {
+            font-size: 16vh !important;          /* 縦長解消のため高さを抑える */
+            transform: scaleX(1.15) !important;  /* AQUOS用のワイド幅を強制 */
             letter-spacing: 4px !important;
             transform-origin: right;
+            line-height: 0.8 !important;
+            text-shadow: 2px 2px 8px #000 !important;
+            font-weight: 900 !important;
         }
-
         #rpm_val {
-            /* 回転数も横にワイド化 */
-            transform: scaleX(1.1) !important;
             font-size: 8.5vh !important;
+            transform: scaleX(1.1) !important;   /* RPMもワイドに */
             letter-spacing: 2px !important;
-            transform-origin: right;
+            line-height: 0.9 !important;
+            margin-bottom: 10px !important;
         }
-
-        #info-overlay {
-            /* ワイドにした分、履歴パネルに刺さらないよう左へオフセット */
-            right: calc(265px + 2vw) !important;
-        }
-
-        /* SPEED等の数字も「縦長棒」にならないよう補正 */
         .val {
-            transform: scaleX(1.1) !important;
+            transform: scaleX(1.1) !important;   /* SPEED等の数字もワイド化 */
             transform-origin: right;
-            letter-spacing: 1px !important;
         }
     }
+
+    /* 共通の微調整 */
+    #display { font-size: 3.5vh !important; margin-bottom: -5px !important; }
 }
     </style>
 </head>
