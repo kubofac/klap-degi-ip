@@ -62,12 +62,10 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面：各要素の高度と配置を個別に完全固定 */
-/* iPhone 8 横画面：右側を下げ、左側を上げ、枠線を完全消去 */
-/* iPhone 8 から AQUOS までの横画面最適化 */
-@media screen and (max-width: 960px) and (orientation: landscape) {
+/* iPhone 8 横画面：微調整済みの配置をベースに、文字幅のみデバイス別最適化 */
+@media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* --- 共通ベース設定（位置・重なり防止） --- */
+    /* 1. 全体コンテナ */
     .main-ui-container {
         position: absolute !important;
         top: 0; left: 0; right: 0; bottom: 0 !important;
@@ -76,46 +74,19 @@ canvas {
         pointer-events: none !important;
     }
 
-    #info-overlay {
+    /* 2. 右側（SPEED/MAX/TEMP）：微調整後の位置(65px)を維持 */
+    .data-panel {
         position: absolute !important;
-        /* 履歴パネルとの距離を画面幅に合わせて動的に確保 */
-        right: calc(230px + 2vw) !important; 
-        top: 60px !important;   
+        right: 12px !important;
+        top: 65px !important; 
+        width: 80px !important;
         display: flex !important;
         flex-direction: column !important;
-        align-items: flex-end !important;
+        gap: 4px !important;
         pointer-events: auto !important;
     }
 
-    /* --- デバイスごとの「文字の太さ（横幅）」出し分け --- */
-
-    /* 1. iPhone 8 など（画面幅 390px 以下）：少しスリムにして重なりを防ぐ */
-    @media screen and (max-width: 390px) {
-        #display1 {
-            transform: scaleX(0.92) !important; /* わずかに細身 */
-            letter-spacing: -1px !important;
-            font-size: 18vh !important;
-        }
-        #rpm_val {
-            transform: scaleX(0.95) !important;
-            font-size: 9vh !important;
-        }
-    }
-
-    /* 2. AQUOS など（画面幅 391px 以上）：どっしり太く、本来のフォント幅に */
-    @media screen and (min-width: 391px) {
-        #display1 {
-            transform: scaleX(1.0) !important;  /* ★等倍（太く見える） */
-            letter-spacing: 1px !important;     /* 文字の間隔を広げる */
-            font-size: 19vh !important;         /* 画面の大きさを活かして拡大 */
-        }
-        #rpm_val {
-            transform: scaleX(1.0) !important;  /* ★等調（太く見える） */
-            font-size: 10vh !important;
-        }
-    }
-
-    /* --- その他共通パーツ（枠線抹殺・スピードパネル） --- */
+    /* 3. 中央（ラップ履歴）：微調整後の位置(65px)と枠線抹殺を維持 */
     #lap-panel {
         position: absolute !important;
         right: 110px !important; 
@@ -138,15 +109,55 @@ canvas {
         font-size: 13px !important;
     }
 
-    .data-panel {
+    /* 4. 左側（RPM/ラップ/TOTAL）：あなたが指定した「高い位置(20px)」を死守 */
+    #info-overlay {
         position: absolute !important;
-        right: 12px !important;
-        top: 65px !important; 
-        width: 80px !important;
+        right: 255px !important; 
+        top: 20px !important;   /* ★ここが「上がっている」ポイント */
         display: flex !important;
         flex-direction: column !important;
-        gap: 4px !important;
+        align-items: flex-end !important;
         pointer-events: auto !important;
+    }
+
+    /* TOTAL表示：回転数に密着 */
+    #display {
+        font-size: 3.5vh !important;
+        margin-bottom: -5px !important; 
+    }
+
+    /* 回転数(RPM)：ラップ表示と密着 */
+    #rpm_val {
+        font-size: 9vh !important;
+        line-height: 0.9 !important;
+        margin-bottom: 10px !important; /* ★ここも微調整済み数値を維持 */
+    }
+
+    /* --------------------------------------------------
+       【ここが重要】AQUOS(400px〜)の時だけ、文字の「細長さ」を解除
+       -------------------------------------------------- */
+    @media screen and (min-width: 391px) {
+        #display1 {
+            transform: scaleX(1.0) !important;  /* ★1.0(等倍)にして太く見せる */
+            letter-spacing: 1px !important;     /* 文字の間隔を広げる */
+        }
+        #rpm_val {
+            transform: scaleX(1.0) !important;  /* RPMも太く */
+        }
+        #info-overlay {
+            /* 広い画面なら、履歴パネルとの隙間を少し広げて視認性UP */
+            right: calc(255px + 2vw) !important;
+        }
+    }
+
+    /* ラップ表示：巨大な数字（デフォルトはiPhone用の0.95倍） */
+    #display1 {
+        font-size: 18vh !important;
+        line-height: 0.8 !important;
+        transform: scaleX(0.95); /* iPhone 8用：少し細くして重なりを回避 */
+        text-shadow: 2px 2px 8px #000 !important;
+        margin-top: 0 !important; 
+        white-space: nowrap !important;
     }
 }
     </style>
