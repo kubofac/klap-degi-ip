@@ -9,164 +9,105 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>KLAP DEGI ULTIMATE V2 - LOGGING</title>
      <link rel="manifest" href="/manifest.json">
-    <style>
-        :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
-body, html {
-    margin: 0;
-    padding: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--bg-dark);
-    color: var(--hrc-white);
-    font-family: 'Arial Black', sans-serif;
-    overflow: hidden;
-    position: fixed; /* 画面を固定 */
-    left: 0;
-    top: 0;
-}
-
-/* 2. 【ここが重要】Canvasを親要素から「独立」させる */
-canvas {
-    display: block;
-    position: fixed;    /* カラムの枠を無視して画面全体に対して配置 */
-    top: 0;
-    left: 0;
-    width: 100vw !important;  /* 画面幅いっぱいに強制 */
-    height: 100vh !important; /* 画面高さいっぱいに強制 */
-    z-index: -1;       /* 他のUI（ボタン等）より背面なら低く、前面なら高く調整 */
-    pointer-events: none; /* Canvasの下にあるボタンを触れるようにする */
-}
-        .main-ui-container {
-            position: absolute; right: 15px; top: 90px; bottom: 50px;
-            display: flex; flex-direction: row; align-items: flex-start; gap: 25px; z-index: 20; pointer-events: none;
-        }
-
-        #info-overlay { display: flex; flex-direction: column; align-items: flex-end; text-align: right; height: 100%; justify-content: center; }
-        #rpm_val { font-size: 11vh; font-weight: 900; line-height: 0.8; text-shadow: 3px 3px 10px #000; margin-bottom: 15px; }
-        #display1 { font-size: 17vh; letter-spacing: 1px; transform: scaleX(0.95); transform-origin: right; font-weight: 900; line-height: 0.8; color: var(--hrc-white); text-shadow: 4px 4px 15px #000; white-space: nowrap; display: inline-block; }
-        #display { font-size: 3.5vh; color: #bbb; text-shadow: 1px 1px 6px #000; margin-top: 5px; }
-
-        #lap-panel { width: 140px; height: 100%; display: flex; flex-direction: column; border-top: none; overflow: hidden; padding-top: 30px; }
-        #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        #lap::-webkit-scrollbar { display: none; }
-        .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
-        .best-lap { color: var(--hrc-red); }
-
-        .data-panel { display: flex; flex-direction: column; gap: 12px; width: 90px; padding-top: 30px; }
-        .data-box { display: flex; flex-direction: column; align-items: flex-end; }
-        .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
-        .val { font-size: 32px; font-weight: 900; line-height: 0.9; }
-
-        footer { height: 45px; display: flex; gap: 4px; padding: 3px; background: #000; border-top: 1px solid #333; z-index: 100; position: fixed; bottom: 0; left: 0; right: 0; padding-bottom: env(safe-area-inset-bottom); }
-        button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: auto; }
-        #saveLogBtn { background: #155724; display: none; }
-        .demo-active { animation: demoBlink 1s infinite; }
-        @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 から AQUOS までの横画面最適化（完全分離版） */
-/* --- 共通：枠線を物理的に根絶する設定（メディアクエリの外に配置） --- */
-#lap-panel, #lap, .lap-row {
-    border: 0px none transparent !important;
-    outline: none !important;
-    box-shadow: none !important;
-    background: none !important;
-}
-
-/* 1. 【iPhone 8 専用：幅400px未満】 あなたが「直りました」と言った時の数値を1pxも変えず固定 */
-@media screen and (max-width: 400px) and (orientation: landscape) {
-    .main-ui-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+  <style>
+    :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
     
+    body, html {
+        margin: 0; padding: 0; width: 100vw; height: 100vh;
+        background-color: var(--bg-dark); color: var(--hrc-white);
+        font-family: 'Arial Black', sans-serif; overflow: hidden;
+        position: fixed; left: 0; top: 0;
+    }
+
+    canvas {
+        display: block; position: fixed; top: 0; left: 0;
+        width: 100vw !important; height: 100vh !important;
+        z-index: -1; pointer-events: none;
+    }
+
+    /* --------------------------------------------------
+       1. 【iPhone 8 ベスト配置】
+       あなたが「直りました」と言った時の数値をデフォルト(ベース)にします
+       -------------------------------------------------- */
     #info-overlay {
         position: absolute !important;
-        right: 255px !important; 
-        top: 20px !important;   
+        right: 255px !important;  /* iPhoneベスト位置 */
+        top: 20px !important;    /* iPhoneベスト高さ */
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
+        z-index: 20;
     }
 
     #display1 {
         font-size: 18vh !important;
-        transform: scaleX(0.95) !important; /* iPhone用の少しスリムな幅 */
         line-height: 0.8 !important;
-        letter-spacing: 0px !important;    /* 文字間を広げない */
+        transform: scaleX(0.95) !important; /* iPhoneベスト幅 */
+        transform-origin: right;           /* 右端を基準に固定 */
         font-weight: 900 !important;
         white-space: nowrap;
+        text-shadow: 2px 2px 8px #000;
     }
 
     #rpm_val {
         font-size: 9vh !important;
         line-height: 0.9 !important;
         margin-bottom: 10px !important;
+        transform-origin: right;
     }
+
+    #display { font-size: 3.5vh; color: #bbb; text-shadow: 1px 1px 6px #000; margin-top: 5px; }
 
     #lap-panel {
         position: absolute !important;
         right: 110px !important; 
-        top: 65px !important;    
+        top: 65px !important;    /* iPhoneベスト高さ */
         bottom: 35px !important; 
         width: 115px !important;
+        border: 0 !important;    /* 枠線抹殺 */
     }
 
     .data-panel {
         position: absolute !important;
         right: 12px !important;
-        top: 65px !important; 
+        top: 65px !important;    /* iPhoneベスト高さ */
         width: 80px !important;
     }
-}
 
-/* 2. 【AQUOS専用：幅401px以上】 縦長感を消し、文字を大きく太くする */
-@media screen and (min-width: 401px) and (orientation: landscape) {
-    #info-overlay {
-        position: absolute !important;
-        right: calc(275px + 2vw) !important; /* はみ出し防止のため右位置を調整 */
-        top: 20px !important; 
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-end !important;
+    /* 枠線・背景の徹底除去 */
+    #lap, .lap-row { border: 0 !important; outline: none !important; box-shadow: none !important; background: none !important; }
+    .lap-row { display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding: 5px 0; font-size: 13px; font-weight: 900; }
+
+    .val { font-size: 32px; font-weight: 900; line-height: 0.9; transform-origin: right; }
+
+    /* --------------------------------------------------
+       2. 【AQUOS専用：幅410px以上】
+       iPhoneの設定は一切壊さず、広画面の時だけ「文字幅」を補正します
+       -------------------------------------------------- */
+    @media screen and (min-width: 410px) and (orientation: landscape) {
+        #display1 {
+            /* 高さは変えず(18vh)、横幅だけ1.15倍にして縦長感を解消 */
+            transform: scaleX(1.15) !important; 
+        }
+
+        #rpm_val {
+            transform: scaleX(1.1) !important;
+        }
+
+        .val {
+            transform: scaleX(1.1) !important;
+        }
+
+        #info-overlay {
+            /* 文字を太くした分、履歴に被らないよう少し左へ（270px） */
+            right: 270px !important;
+        }
     }
 
-    #display1 {
-        font-size: 19vh !important;          /* 文字を大きく */
-        transform: scaleX(1.15) !important;  /* 縦長を打ち消すため横に引き伸ばす */
-        letter-spacing: 1px !important;     /* 広がりすぎないよう調整 */
-        transform-origin: right;
-        line-height: 0.8 !important;
-        font-weight: 900 !important;
-    }
-
-    #rpm_val {
-        font-size: 9.5vh !important;
-        transform: scaleX(1.1) !important;
-        line-height: 0.9 !important;
-        margin-bottom: 10px !important;
-    }
-
-    #lap-panel {
-        position: absolute !important;
-        right: 120px !important; 
-        top: 65px !important;    
-        bottom: 35px !important; 
-        width: 130px !important; /* 文字が小さく見えないよう幅を確保 */
-    }
-
-    .data-panel {
-        position: absolute !important;
-        right: 15px !important;
-        top: 65px !important; 
-        width: 90px !important;
-    }
-
-    .val {
-        font-size: 34px !important; /* 小さく見えないようサイズ固定 */
-        transform: scaleX(1.05) !important;
-    }
-}
-
-/* 共通の微調整 */
-.lap-row { display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding: 4px 0; font-size: 14px; }
-#display { font-size: 3.5vh !important; margin-bottom: -5px !important; }
-    </style>
+    /* フッター等は変更なし */
+    footer { height: 45px; display: flex; gap: 4px; padding: 3px; background: #000; border-top: 1px solid #333; z-index: 100; position: fixed; bottom: 0; left: 0; right: 0; padding-bottom: env(safe-area-inset-bottom); }
+    button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: auto; }
+</style>
 </head>
 <body>
 
