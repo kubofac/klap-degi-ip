@@ -62,33 +62,33 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面：全体を右側に寄せ、重なりとはみ出しを同時に解決 */
-/* iPhone 8 横画面：ラップタイムを左に離し、全体をわずかに下げる */
-/* iPhone 8 横画面：ラップ履歴の「L」とタイムの重なりを物理的に分離 */
-/* iPhone 8 横画面：右側パネルをRPMの高さまで引き上げ、全ての線を消す */
+/* iPhone 8 横画面：各パネルの高さを個別に最適化 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：bottomを大幅に上げ、RPM表示のライン(約160px〜)に合わせる */
+    /* 1. 全体コンテナ：一度「高さ」の縛りを解く */
     .main-ui-container {
         position: absolute !important;
         right: 0px !important;
-        /* ★110pxからさらに引き上げ。RPM表示の高さに合わせて調整 */
-        bottom: 155px !important; 
-        width: auto !important;
+        top: 0px !important;    /* 上端を基準にする */
+        bottom: 0px !important; /* 下端まで広げる */
+        width: 100% !important;
         display: flex !important;
         flex-direction: row !important;
         justify-content: flex-end !important;
-        align-items: flex-end !important;
+        align-items: stretch !important; /* 中身の高さ自由度を上げる */
         padding-right: 10px !important;
-        gap: 6px !important;
+        pointer-events: none !important; /* 背後の操作を邪魔しない */
     }
+    .main-ui-container > * { pointer-events: auto !important; }
 
-    /* 2. ラップタイム表示部：履歴との隙間を維持 */
+    /* 2. ラップタイム表示（左）：位置を「下」に戻し、履歴から離す */
     #info-overlay {
+        position: absolute !important;
+        right: 215px !important; /* SPEED(85) + 履歴(110) + 余白(20) */
+        bottom: 90px !important;  /* ★ラップタイムは元の低い位置に配置 */
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
-        margin-right: 20px !important; 
     }
 
     #display1 {
@@ -97,51 +97,49 @@ canvas {
         text-shadow: 2px 2px 6px #000 !important;
     }
 
-    /* 3. ラップ履歴：枠線・背景・影をすべてゼロにする */
+    /* 3. ラップ履歴（中央）：【上から下まで目一杯】 */
     #lap-panel {
-        width: 100px !important;
-        min-width: 100px !important;
-        max-height: 140px !important;
-        /* ★枠線抹殺：あらゆるボーダー設定を無効化 */
+        position: absolute !important;
+        right: 100px !important; /* SPEED(85) + 余白(15) */
+        top: 60px !important;    /* ★RPMと同じ高い位置から開始 */
+        bottom: 50px !important; /* ★ボタン付近（下端）まで伸ばす */
+        width: 105px !important;
+        max-height: none !important; /* ★高さ制限を解除 */
+        /* 枠線と背景を完全に抹殺 */
         border: 0 !important;
-        border-width: 0 !important;
-        border-style: none !important;
         outline: none !important;
-        box-shadow: none !important;
         background: transparent !important;
-        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     #lap {
+        flex: 1 !important;
         display: flex !important;
         flex-direction: column !important;
-        /* ここでも枠線を念のため消す */
+        overflow-y: auto !important; /* 溢れたらスクロール可能に */
         border: 0 !important;
-        outline: none !important;
     }
 
     .lap-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        font-size: 13px !important;
-        padding: 4px 0 !important;
-        /* ★行ごとの線も不要ならここを0にする */
         border: 0 !important;
-        border-bottom: 0 !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 薄い区切り線のみ残す */
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        padding: 5px 0 !important;
     }
 
-    /* 4. SPEED / MAX / TEMP パネル（一番右） */
+    /* 4. SPEED / MAX / TEMP（右端）：高い位置に固定 */
     .data-panel {
-        width: 75px !important;
-        min-width: 75px !important;
-        gap: 3px !important;
-        /* ここも枠線があれば消す */
-        border: 0 !important;
+        position: absolute !important;
+        right: 10px !important;
+        top: 60px !important; /* ★RPMと同じ高い位置 */
+        width: 85px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 5px !important;
     }
 
     .val {
-        font-size: 30px !important;
+        font-size: 32px !important;
         line-height: 0.85 !important;
     }
 }
