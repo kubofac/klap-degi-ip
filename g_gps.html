@@ -63,84 +63,92 @@ canvas {
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
 /* iPhone 8 横画面：各パネルの高さを個別に最適化 */
+/* iPhone 8 横画面：バーとの重なりを避け、右パネルとの距離を適正化 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：一度「高さ」の縛りを解く */
+    /* 1. 全体コンテナ：干渉を防ぐため透明なベースとして定義 */
     .main-ui-container {
         position: absolute !important;
-        right: 0px !important;
-        top: 0px !important;    /* 上端を基準にする */
-        bottom: 0px !important; /* 下端まで広げる */
+        top: 0; left: 0; right: 0; bottom: 0 !important;
         width: 100% !important;
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: flex-end !important;
-        align-items: stretch !important; /* 中身の高さ自由度を上げる */
-        padding-right: 10px !important;
-        pointer-events: none !important; /* 背後の操作を邪魔しない */
+        height: 100% !important;
+        pointer-events: none !important;
     }
-    .main-ui-container > * { pointer-events: auto !important; }
 
-    /* 2. ラップタイム表示（左）：位置を「下」に戻し、履歴から離す */
+    /* 2. ラップタイム表示（大きな数字）：バーを避け、位置を「中段」へ */
     #info-overlay {
         position: absolute !important;
-        right: 215px !important; /* SPEED(85) + 履歴(110) + 余白(20) */
-        bottom: 90px !important;  /* ★ラップタイムは元の低い位置に配置 */
+        /* 右端からの距離：SPEED(85) + 履歴(105) + 余裕(35) = 225px */
+        right: 225px !important; 
+        /* ★上がりすぎを修正：上から85px（バーの下）に配置 */
+        top: 85px !important; 
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
+        pointer-events: auto !important;
     }
 
     #display1 {
         font-size: 17vh !important;
         line-height: 0.8 !important;
-        text-shadow: 2px 2px 6px #000 !important;
+        text-shadow: 2px 2px 8px #000 !important;
+        white-space: nowrap !important;
     }
 
-    /* 3. ラップ履歴（中央）：【上から下まで目一杯】 */
+    /* 3. ラップ履歴（中央）：Lの重なりを防ぐため幅と位置を固定 */
     #lap-panel {
         position: absolute !important;
-        right: 100px !important; /* SPEED(85) + 余白(15) */
-        top: 60px !important;    /* ★RPMと同じ高い位置から開始 */
-        bottom: 50px !important; /* ★ボタン付近（下端）まで伸ばす */
+        right: 105px !important; /* SPEED(85) + 隙間(20) */
+        top: 65px !important;    /* ★RPMの高さに合わせつつバーを回避 */
+        bottom: 45px !important; /* ★ボタン付近まで目一杯伸ばす */
         width: 105px !important;
-        max-height: none !important; /* ★高さ制限を解除 */
-        /* 枠線と背景を完全に抹殺 */
+        min-width: 105px !important;
+        /* 枠線を完全に消去 */
         border: 0 !important;
-        outline: none !important;
         background: transparent !important;
         display: flex !important;
         flex-direction: column !important;
+        pointer-events: auto !important;
     }
 
     #lap {
         flex: 1 !important;
         display: flex !important;
         flex-direction: column !important;
-        overflow-y: auto !important; /* 溢れたらスクロール可能に */
+        overflow-y: auto !important;
         border: 0 !important;
     }
 
     .lap-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        font-size: 13px !important;
+        padding: 4px 0 !important;
         border: 0 !important;
         border-top: 1px solid rgba(255,255,255,0.1) !important;
-        padding: 5px 0 !important;
     }
 
     /* 4. SPEED / MAX / TEMP（右端）：高い位置に固定 */
     .data-panel {
         position: absolute !important;
-        right: 10px !important;
-        top: 60px !important; /* ★RPMと同じ高い位置 */
-        width: 85px !important;
+        right: 15px !important; /* 画面右端から少し離す */
+        top: 65px !important; 
+        width: 80px !important;
         display: flex !important;
         flex-direction: column !important;
-        gap: 5px !important;
+        gap: 6px !important;
+        pointer-events: auto !important;
     }
 
     .val {
-        font-size: 32px !important;
+        font-size: 30px !important;
         line-height: 0.85 !important;
+        text-align: right !important;
+    }
+
+    .label {
+        font-size: 9px !important;
+        text-align: right !important;
     }
 }
     </style>
