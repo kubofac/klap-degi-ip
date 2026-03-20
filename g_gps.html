@@ -61,13 +61,14 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
- @media screen and (max-width: 667px) and (orientation: landscape) {
+/* iPhone 8 横画面専用：AQUOSに影響を与えず「最新を一番上」にする */
+@media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：さらに上に引き上げ (bottom: 110px) */
+    /* 1. 全体をさらに上に引き上げ (ボタン回避) */
     .main-ui-container {
         position: absolute !important;
         right: 0px !important;
-        bottom: 110px !important; 
+        bottom: 115px !important; /* 100pxからさらに上げました */
         width: 100% !important;
         display: flex !important;
         flex-direction: row !important;
@@ -75,64 +76,56 @@ canvas {
         align-items: flex-end !important;
         padding-right: 15px !important;
         gap: 15px !important;
+        top: auto !important; /* 上からの指定を無効化 */
     }
 
-    /* 2. ラップタイム（左側）：巨大化 */
-    #info-overlay {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-end !important;
-    }
-
-    #display1 {
-        font-size: 19vh !important;
-        line-height: 0.8 !important;
-        text-shadow: 4px 4px 10px #000 !important;
-        padding-right: 10px !important;
-    }
-
-    /* 3. ラップ履歴：枠線を徹底排除 */
+    /* 2. ラップ履歴：【ここが解決策】 */
     #lap-panel {
         width: 115px !important;
         min-width: 115px !important;
-        max-height: 150px !important;
+        max-height: 140px !important;
         border: none !important;      /* 枠線削除 */
         background: none !important;  /* 背景削除 */
-        padding-top: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important; /* 上から詰める */
         overflow: hidden !important;
     }
 
     #lap {
         display: flex !important;
-        flex-direction: column !important; /* JSのprependに合わせて通常順に */
-        justify-content: flex-start !important;
+        /* ★重要：JSが下に足していくデータを、CSSの力で「下から上」の順に並べ替える */
+        flex-direction: column-reverse !important; 
+        justify-content: flex-end !important; /* 要素が少ない時も上に張り付く */
         border: none !important;
+        padding: 0 !important;
     }
 
     .lap-row {
+        flex-shrink: 0 !important;
         font-size: 14px !important;
         padding: 4px 0 !important;
-        border: none !important;       /* 行の線も削除 */
-        /* 文字が重なって見える場合は、わずかに上線を入れると見やすくなります */
-        border-top: 1px solid rgba(255,255,255,0.1) !important; 
+        border: none !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 薄い区切り線のみ */
     }
 
-    /* 4. SPEED / MAX / TEMP パネル（右端） */
+    /* 3. ラップタイム（左側）：巨大化 */
+    #display1 {
+        font-size: 20vh !important; /* 18vhからさらに大きく！ */
+        line-height: 0.8 !important;
+        padding-right: 15px !important;
+    }
+
+    /* 4. SPEED / MAX / TEMP（右側） */
     .data-panel {
         width: 85px !important;
-        gap: 3px !important;
+        gap: 2px !important;
+        padding-top: 0 !important;
     }
 
     .val {
         font-size: 32px !important;
-        line-height: 0.85 !important;
-        text-align: right !important;
-    }
-
-    .label {
-        font-size: 9px !important;
-        text-align: right !important;
+        line-height: 0.8 !important;
     }
 }
     </style>
@@ -325,7 +318,7 @@ function processLap(exactTime, useFreeze) {
     const best = Math.min(...lapRecords);
     lapRecords.forEach((t, i) => {
         const r = document.createElement('div'); r.className = `lap-row ${t === best ? 'best-lap' : ''}`;
-        r.innerHTML = `<span>L${lapRecords.length-i}</span><span>${timeFormat(t)}</span>`; d.prepend(r);
+        r.innerHTML = `<span>L${lapRecords.length-i}</span><span>${timeFormat(t)}</span>`; d.appendChild(r);
     });
     if (useFreeze) { 
         isFrozen = true; 
