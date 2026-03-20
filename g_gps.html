@@ -64,9 +64,10 @@ canvas {
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
 /* iPhone 8 横画面：各要素の高度と配置を個別に完全固定 */
 /* iPhone 8 横画面：右側を下げ、左側を上げ、枠線を完全消去 */
-@media screen and (max-width: 667px) and (orientation: landscape) {
+/* iPhone 8 から AQUOS までの横画面最適化 */
+@media screen and (max-width: 960px) and (orientation: landscape) {
 
-    /* 1. 全体ベース：透明なレイヤーとして定義 */
+    /* --- 共通ベース設定（位置・重なり防止） --- */
     .main-ui-container {
         position: absolute !important;
         top: 0; left: 0; right: 0; bottom: 0 !important;
@@ -75,83 +76,77 @@ canvas {
         pointer-events: none !important;
     }
 
-    /* 2. 右側（SPEED/MAX/TEMP）：バーから少し下げて配置 */
-    .data-panel {
-        position: absolute !important;
-        right: 12px !important;
-        /* ★バーから離す：45pxから65pxへ下げました */
-        top: 65px !important; 
-        width: 80px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 4px !important;
-        pointer-events: auto !important;
-    }
-
-    /* 3. 中央（ラップ履歴）：右側に合わせて下げ、枠線を抹殺 */
-    #lap-panel {
-        position: absolute !important;
-        right: 110px !important; 
-        /* ★右側に合わせて下げ：45pxから65pxへ */
-        top: 65px !important;    
-        bottom: 35px !important; 
-        width: 115px !important;
-        /* --- 枠線・背景を物理的に根絶 --- */
-        border: 0px none transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-        background: none !important;
-        display: flex !important;
-        flex-direction: column !important;
-        pointer-events: auto !important;
-    }
-
-    /* 履歴リスト本体と各行の枠線もすべて消す */
-    #lap, .lap-row {
-        border: 0px none transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
-    .lap-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 薄い区切り線のみ残す */
-        padding: 4px 0 !important;
-        font-size: 13px !important;
-    }
-
-    /* 4. 左側（RPM/ラップ/TOTAL）：バーに近づけるよう上げる */
     #info-overlay {
         position: absolute !important;
-        right: 255px !important; 
-        /* ★バーに近づける：80pxから60pxへ上げました */
-        top: 20px !important;   
+        /* 履歴パネルとの距離を画面幅に合わせて動的に確保 */
+        right: calc(230px + 2vw) !important; 
+        top: 60px !important;   
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
         pointer-events: auto !important;
     }
 
-    /* TOTAL表示：回転数にさらに近づける */
-    #display {
-        font-size: 3.5vh !important;
-        margin-bottom: -5px !important; 
+    /* --- デバイスごとの「文字の太さ（横幅）」出し分け --- */
+
+    /* 1. iPhone 8 など（画面幅 390px 以下）：少しスリムにして重なりを防ぐ */
+    @media screen and (max-width: 390px) {
+        #display1 {
+            transform: scaleX(0.92) !important; /* わずかに細身 */
+            letter-spacing: -1px !important;
+            font-size: 18vh !important;
+        }
+        #rpm_val {
+            transform: scaleX(0.95) !important;
+            font-size: 9vh !important;
+        }
     }
 
-    /* 回転数(RPM)：ラップ表示と密着させる */
-    #rpm_val {
-        font-size: 9vh !important;
-        line-height: 0.9 !important;
-        margin-bottom: 10px !important; 
+    /* 2. AQUOS など（画面幅 391px 以上）：どっしり太く、本来のフォント幅に */
+    @media screen and (min-width: 391px) {
+        #display1 {
+            transform: scaleX(1.0) !important;  /* ★等倍（太く見える） */
+            letter-spacing: 1px !important;     /* 文字の間隔を広げる */
+            font-size: 19vh !important;         /* 画面の大きさを活かして拡大 */
+        }
+        #rpm_val {
+            transform: scaleX(1.0) !important;  /* ★等調（太く見える） */
+            font-size: 10vh !important;
+        }
     }
 
-    /* ラップ表示：巨大な数字 */
-    #display1 {
-        font-size: 18vh !important;
-        line-height: 0.8 !important;
-        text-shadow: 2px 2px 8px #000 !important;
-        margin-top: 0 !important; 
+    /* --- その他共通パーツ（枠線抹殺・スピードパネル） --- */
+    #lap-panel {
+        position: absolute !important;
+        right: 110px !important; 
+        top: 65px !important;    
+        bottom: 35px !important; 
+        width: 115px !important;
+        border: 0px none transparent !important;
+        background: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        pointer-events: auto !important;
+    }
+
+    #lap, .lap-row { border: 0 !important; outline: none !important; box-shadow: none !important; }
+    .lap-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        padding: 4px 0 !important;
+        font-size: 13px !important;
+    }
+
+    .data-panel {
+        position: absolute !important;
+        right: 12px !important;
+        top: 65px !important; 
+        width: 80px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        pointer-events: auto !important;
     }
 }
     </style>
