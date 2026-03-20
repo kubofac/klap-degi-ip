@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     
     <meta charset="UTF-8">
@@ -61,71 +62,32 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面専用：AQUOSに影響を与えず「最新を一番上」にする */
+/* iPhone 8 横画面：個別の下線もすべて消し去る設定 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体をさらに上に引き上げ (ボタン回避) */
+    /* 全体の位置を上に逃がす（ボタン回避） */
     .main-ui-container {
-        position: absolute !important;
-        right: 0px !important;
-        bottom: 115px !important; /* 100pxからさらに上げました */
-        width: 100% !important;
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: flex-end !important;
-        align-items: flex-end !important;
-        padding-right: 15px !important;
-        gap: 15px !important;
-        top: auto !important; /* 上からの指定を無効化 */
+        bottom: 110px !important; 
     }
 
-    /* 2. ラップ履歴：【ここが解決策】 */
+    /* 履歴パネルの外枠を消す */
     #lap-panel {
-        width: 115px !important;
-        min-width: 115px !important;
-        max-height: 140px !important;
-        border: none !important;      /* 枠線削除 */
-        background: none !important;  /* 背景削除 */
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: flex-start !important; /* 上から詰める */
-        overflow: hidden !important;
-    }
-
-    #lap {
-        display: flex !important;
-        /* ★重要：JSが下に足していくデータを、CSSの力で「下から上」の順に並べ替える */
-        flex-direction: column-reverse !important; 
-        justify-content: flex-end !important; /* 要素が少ない時も上に張り付く */
         border: none !important;
-        padding: 0 !important;
+        background: none !important;
     }
 
+    /* ★ここが重要：1行ごとの「下線」を強制消去 */
     .lap-row {
-        flex-shrink: 0 !important;
-        font-size: 14px !important;
+        border-bottom: none !important; /* 元のCSSの下線を消す */
+        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 代わりに極薄の上線を入れる（不要ならここもnoneに） */
         padding: 4px 0 !important;
-        border: none !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 薄い区切り線のみ */
+        font-size: 14px !important;
     }
-
-    /* 3. ラップタイム（左側）：巨大化 */
+    
+    /* 巨大なラップタイム表示 */
     #display1 {
-        font-size: 20vh !important; /* 18vhからさらに大きく！ */
-        line-height: 0.8 !important;
+        font-size: 19vh !important;
         padding-right: 15px !important;
-    }
-
-    /* 4. SPEED / MAX / TEMP（右側） */
-    .data-panel {
-        width: 85px !important;
-        gap: 2px !important;
-        padding-top: 0 !important;
-    }
-
-    .val {
-        font-size: 32px !important;
-        line-height: 0.8 !important;
     }
 }
     </style>
@@ -307,6 +269,7 @@ function processLap(exactTime, useFreeze) {
     const lapTime = exactTime - (lapStartTime || startTime);
     if (lapTime <= 0) return;
 
+    // 配列の先頭に新しいタイムを追加（[0]が常に最新）
     lapRecords.unshift(lapTime);
     trackLogs.push([...currentLapLog]);
     currentLapLog = [];
@@ -314,12 +277,24 @@ function processLap(exactTime, useFreeze) {
     lapStartTime = exactTime; 
     lastLapTime = exactTime;
 
-    const d = document.getElementById('lap'); d.innerHTML = "";
+    const d = document.getElementById('lap'); 
+    d.innerHTML = ""; // 表示をクリア
     const best = Math.min(...lapRecords);
+
+    // [0]番目(最新)から順にループして表示
     lapRecords.forEach((t, i) => {
-        const r = document.createElement('div'); r.className = `lap-row ${t === best ? 'best-lap' : ''}`;
-        r.innerHTML = `<span>L${lapRecords.length-i}</span><span>${timeFormat(t)}</span>`; d.appendChild(r);
+        const r = document.createElement('div'); 
+        // クラス名を付与（ベストラップなら赤字にするため）
+        r.className = `lap-row ${t === best ? 'best-lap' : ''}`;
+        
+        // L番号の計算：全件数 - ループ回数 (例: 5件中 0回目なら L5)
+        const lapNumber = lapRecords.length - i;
+        r.innerHTML = `<span>L${lapNumber}</span><span>${timeFormat(t)}</span>`;
+        
+        // 順番に下へ追加（最初が最新なので、結果的に一番上が最新になる）
+        d.appendChild(r);
     });
+
     if (useFreeze) { 
         isFrozen = true; 
         freezeDisplayTime = timeFormat(lapTime); 
