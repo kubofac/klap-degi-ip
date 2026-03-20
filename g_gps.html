@@ -63,6 +63,7 @@ canvas {
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
 /* iPhone 8 横画面：回転数とラップをさらに上げ、履歴との距離を最適化 */
+/* iPhone 8 横画面：バー直下まで上げ、履歴の3桁目とSPEEDの重なりを物理的に分離 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
     /* 1. 全体コンテナ：ベース設定 */
@@ -74,13 +75,13 @@ canvas {
         pointer-events: none !important;
     }
 
-    /* 2. ラップタイム表示（大きな数字）：高さを上げ、左へ寄せる */
+    /* 2. ラップタイム表示（大きな数字）：さらに上げ、左へさらに逃がす */
     #info-overlay {
         position: absolute !important;
-        /* ★履歴のLとの重なりを防ぐため、右端からさらに離す(225px → 240px) */
-        right: 240px !important; 
-        /* ★上がりすぎない絶妙な高さ：上から70px（バーの直下） */
-        top: 70px !important; 
+        /* ★履歴のLとの重なりを完全に防ぐため、右端からさらに離す(240px → 260px) */
+        right: 260px !important; 
+        /* ★限界まで上へ：上から55px（ステータスバーのすぐ下） */
+        top: 55px !important; 
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
@@ -88,7 +89,7 @@ canvas {
     }
 
     #display1 {
-        font-size: 18vh !important; /* 少しだけサイズアップ */
+        font-size: 18vh !important;
         line-height: 0.8 !important;
         text-shadow: 2px 2px 8px #000 !important;
         white-space: nowrap !important;
@@ -99,14 +100,15 @@ canvas {
         margin-bottom: 2px !important;
     }
 
-    /* 3. ラップ履歴（中央）：Lの重なりを物理的に防ぐ幅固定 */
+    /* 3. ラップ履歴（中央）：SPEEDとの重なりを防ぐ位置固定 */
     #lap-panel {
         position: absolute !important;
-        right: 110px !important; 
-        top: 60px !important;    /* SPEEDパネルと高さを揃える */
-        bottom: 40px !important; /* ボタン付近まで目一杯伸ばす */
-        width: 105px !important;
-        min-width: 105px !important;
+        /* ★SPEED(80px) + 隙間(25px) = 105px地点に配置し、3桁目が欠けるのを防ぐ */
+        right: 105px !important; 
+        top: 55px !important;    /* SPEEDパネルと高さを揃える */
+        bottom: 35px !important; /* ボタン付近までさらに伸ばす */
+        width: 110px !important; /* 3桁目が収まるよう幅をわずかに広げる */
+        min-width: 110px !important;
         border: 0 !important;
         background: transparent !important;
         display: flex !important;
@@ -127,15 +129,15 @@ canvas {
         justify-content: space-between !important;
         font-size: 13px !important;
         padding: 4px 0 !important;
-        border: 0 !important; /* 枠線を完全に消去 */
+        border: 0 !important; 
         border-top: 1px solid rgba(255,255,255,0.1) !important;
     }
 
     /* 4. SPEED / MAX / TEMP（右端）：高い位置に固定 */
     .data-panel {
         position: absolute !important;
-        right: 15px !important; 
-        top: 60px !important; 
+        right: 10px !important; /* 画面右端に寄せる */
+        top: 55px !important; 
         width: 80px !important;
         display: flex !important;
         flex-direction: column !important;
