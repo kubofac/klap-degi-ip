@@ -61,6 +61,94 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
+    /* --- iPhone 8 横画面 (667x375) 専用レイアウト調整 --- */
+@media screen and (max-width: 667px) and (orientation: landscape) {
+    /* 1. 全体コンテナ：ボタンとの干渉を避けるため、下から80px浮かせ、右端に固定 */
+    .main-ui-container {
+        position: absolute !important;
+        right: 0px !important;
+        bottom: 80px !important; /* ★ここを上げたことでTEMPがボタンを避けます */
+        top: auto !important;
+        width: auto !important;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-end !important;
+        align-items: flex-end !important;
+        padding-right: 8px !important; /* 画面端の微調整 */
+        gap: 12px !important; /* 各カラム間の隙間 */
+    }
+
+    /* 2. SPEED/MAX/TEMPパネル：3桁対応の90px幅に設定 */
+    .data-panel {
+        width: 90px !important;
+        min-width: 90px !important;
+        padding-top: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-end !important; /* ★中身を右揃え */
+        gap: 6px !important; /* 縦の項目間を詰めて高さを節約 */
+    }
+
+    /* 各項目の箱：ラベルと数値を右端で垂直に揃える */
+    .data-box {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-end !important;
+        margin-bottom: 2px !important;
+    }
+
+    /* 3. 数値（0など）：右寄せ、3桁でも崩れない設定 */
+    .val {
+        font-size: 32px !important; /* 少し高さを抑えてTEMPを上に逃がす */
+        text-align: right !important;
+        width: 100% !important;
+        line-height: 0.85 !important;
+        letter-spacing: -1px !important;
+    }
+
+    .label {
+        font-size: 9px !important;
+        text-align: right !important;
+        width: 100% !important;
+        margin-bottom: -1px !important;
+    }
+
+    /* 4. ラップ履歴：縦に長くなりすぎないよう制限 */
+    #lap-panel {
+        width: 100px !important;
+        height: auto !important;
+        max-height: 140px !important; /* ボタンに重ならない高さ */
+        padding-top: 0 !important;
+    }
+    
+    .lap-row {
+        font-size: 14px !important;
+        padding: 2px 0 !important;
+    }
+
+    /* 5. ラップタイム表示（一番左）：サイズを下げて左側のはみ出しを防止 */
+    #info-overlay {
+        justify-content: flex-end !important;
+        margin-bottom: 2px !important;
+    }
+
+    #display1 {
+        font-size: 12vh !important; /* 17vhから縮小して画面内に収める */
+        text-align: right !important;
+    }
+
+    #rpm_val {
+        font-size: 8vh !important;
+        margin-bottom: 5px !important;
+    }
+
+    #display {
+        font-size: 3vh !important;
+    }
+}
+    
+    
     </style>
 </head>
 <body>
