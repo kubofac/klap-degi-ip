@@ -65,82 +65,83 @@ canvas {
 /* iPhone 8 横画面：全体を右側に寄せ、重なりとはみ出しを同時に解決 */
 /* iPhone 8 横画面：ラップタイムを左に離し、全体をわずかに下げる */
 /* iPhone 8 横画面：ラップ履歴の「L」とタイムの重なりを物理的に分離 */
+/* iPhone 8 横画面：右側パネルをRPMの高さまで引き上げ、全ての線を消す */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：右端に寄せ、パネル間の隙間をさらに詰める */
+    /* 1. 全体コンテナ：bottomを大幅に上げ、RPM表示のライン(約160px〜)に合わせる */
     .main-ui-container {
         position: absolute !important;
         right: 0px !important;
-        bottom: 95px !important; 
+        /* ★110pxからさらに引き上げ。RPM表示の高さに合わせて調整 */
+        bottom: 155px !important; 
         width: auto !important;
         display: flex !important;
         flex-direction: row !important;
         justify-content: flex-end !important;
         align-items: flex-end !important;
-        padding-right: 8px !important;
-        gap: 4px !important; /* パネル同士をほぼ密着させる */
+        padding-right: 10px !important;
+        gap: 6px !important;
     }
 
-    /* 2. ラップタイム表示部：履歴パネルとの間に「絶対的な溝」を作る */
+    /* 2. ラップタイム表示部：履歴との隙間を維持 */
     #info-overlay {
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
-        /* ★重要：履歴パネルの「L」が絶対に入り込めないよう右マージンを確保 */
-        margin-right: 25px !important; 
-        max-width: 260px !important;
+        margin-right: 20px !important; 
     }
 
     #display1 {
         font-size: 17vh !important;
         line-height: 0.8 !important;
-        white-space: nowrap !important;
         text-shadow: 2px 2px 6px #000 !important;
     }
 
-    /* 3. ラップ履歴：幅を極限まで絞り、Lとタイムを密着させる */
+    /* 3. ラップ履歴：枠線・背景・影をすべてゼロにする */
     #lap-panel {
-        width: 95px !important; /* 105pxから95pxへスリム化 */
-        min-width: 95px !important;
-        max-height: 135px !important;
-        border: none !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        max-height: 140px !important;
+        /* ★枠線抹殺：あらゆるボーダー設定を無効化 */
+        border: 0 !important;
+        border-width: 0 !important;
+        border-style: none !important;
+        outline: none !important;
+        box-shadow: none !important;
         background: transparent !important;
         padding: 0 !important;
     }
 
-    /* ラップ履歴の行設定 */
+    #lap {
+        display: flex !important;
+        flex-direction: column !important;
+        /* ここでも枠線を念のため消す */
+        border: 0 !important;
+        outline: none !important;
+    }
+
     .lap-row {
         display: flex !important;
         justify-content: space-between !important;
-        width: 100% !important;
         font-size: 13px !important;
-        padding: 3px 0 !important;
-        border-bottom: none !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important;
-    }
-
-    /* 「L1」などの文字を左端に寄せ、タイムとの距離を稼ぐ */
-    .lap-row span:first-child {
-        min-width: 25px !important;
-        text-align: left !important;
-        color: var(--hrc-red); /* L番号を赤くして視認性向上 */
-    }
-
-    /* 履歴内のタイムを右端に寄せる */
-    .lap-row span:last-child {
-        flex: 1 !important;
-        text-align: right !important;
+        padding: 4px 0 !important;
+        /* ★行ごとの線も不要ならここを0にする */
+        border: 0 !important;
+        border-bottom: 0 !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 薄い区切り線のみ残す */
     }
 
     /* 4. SPEED / MAX / TEMP パネル（一番右） */
     .data-panel {
         width: 75px !important;
         min-width: 75px !important;
-        gap: 2px !important;
+        gap: 3px !important;
+        /* ここも枠線があれば消す */
+        border: 0 !important;
     }
 
     .val {
-        font-size: 28px !important;
+        font-size: 30px !important;
         line-height: 0.85 !important;
     }
 }
