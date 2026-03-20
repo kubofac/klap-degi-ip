@@ -62,11 +62,10 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面：各パネルの高さを個別に最適化 */
-/* iPhone 8 横画面：バーとの重なりを避け、右パネルとの距離を適正化 */
+/* iPhone 8 横画面：回転数とラップをさらに上げ、履歴との距離を最適化 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：干渉を防ぐため透明なベースとして定義 */
+    /* 1. 全体コンテナ：ベース設定 */
     .main-ui-container {
         position: absolute !important;
         top: 0; left: 0; right: 0; bottom: 0 !important;
@@ -75,13 +74,13 @@ canvas {
         pointer-events: none !important;
     }
 
-    /* 2. ラップタイム表示（大きな数字）：バーを避け、位置を「中段」へ */
+    /* 2. ラップタイム表示（大きな数字）：高さを上げ、左へ寄せる */
     #info-overlay {
         position: absolute !important;
-        /* 右端からの距離：SPEED(85) + 履歴(105) + 余裕(35) = 225px */
-        right: 225px !important; 
-        /* ★上がりすぎを修正：上から85px（バーの下）に配置 */
-        top: 85px !important; 
+        /* ★履歴のLとの重なりを防ぐため、右端からさらに離す(225px → 240px) */
+        right: 240px !important; 
+        /* ★上がりすぎない絶妙な高さ：上から70px（バーの直下） */
+        top: 70px !important; 
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
@@ -89,21 +88,25 @@ canvas {
     }
 
     #display1 {
-        font-size: 17vh !important;
+        font-size: 18vh !important; /* 少しだけサイズアップ */
         line-height: 0.8 !important;
         text-shadow: 2px 2px 8px #000 !important;
         white-space: nowrap !important;
     }
 
-    /* 3. ラップ履歴（中央）：Lの重なりを防ぐため幅と位置を固定 */
+    #rpm_val {
+        font-size: 9vh !important;
+        margin-bottom: 2px !important;
+    }
+
+    /* 3. ラップ履歴（中央）：Lの重なりを物理的に防ぐ幅固定 */
     #lap-panel {
         position: absolute !important;
-        right: 105px !important; /* SPEED(85) + 隙間(20) */
-        top: 65px !important;    /* ★RPMの高さに合わせつつバーを回避 */
-        bottom: 45px !important; /* ★ボタン付近まで目一杯伸ばす */
+        right: 110px !important; 
+        top: 60px !important;    /* SPEEDパネルと高さを揃える */
+        bottom: 40px !important; /* ボタン付近まで目一杯伸ばす */
         width: 105px !important;
         min-width: 105px !important;
-        /* 枠線を完全に消去 */
         border: 0 !important;
         background: transparent !important;
         display: flex !important;
@@ -124,15 +127,15 @@ canvas {
         justify-content: space-between !important;
         font-size: 13px !important;
         padding: 4px 0 !important;
-        border: 0 !important;
+        border: 0 !important; /* 枠線を完全に消去 */
         border-top: 1px solid rgba(255,255,255,0.1) !important;
     }
 
     /* 4. SPEED / MAX / TEMP（右端）：高い位置に固定 */
     .data-panel {
         position: absolute !important;
-        right: 15px !important; /* 画面右端から少し離す */
-        top: 65px !important; 
+        right: 15px !important; 
+        top: 60px !important; 
         width: 80px !important;
         display: flex !important;
         flex-direction: column !important;
@@ -143,12 +146,6 @@ canvas {
     .val {
         font-size: 30px !important;
         line-height: 0.85 !important;
-        text-align: right !important;
-    }
-
-    .label {
-        font-size: 9px !important;
-        text-align: right !important;
     }
 }
     </style>
