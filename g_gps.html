@@ -9,153 +9,98 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>KLAP DEGI ULTIMATE V2 - LOGGING</title>
      <link rel="manifest" href="/manifest.json">
-      <style>
-        :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
-body, html {
-    margin: 0;
-    padding: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--bg-dark);
-    color: var(--hrc-white);
-    font-family: 'Arial Black', sans-serif;
-    overflow: hidden;
-    position: fixed; /* 画面を固定 */
-    left: 0;
-    top: 0;
-}
+     <style>
+    :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
+    
+    body, html {
+        margin: 0; padding: 0; width: 100vw; height: 100vh;
+        background-color: var(--bg-dark); color: var(--hrc-white);
+        font-family: 'Arial Black', sans-serif; overflow: hidden;
+        position: fixed; left: 0; top: 0;
+    }
 
-/* 2. 【ここが重要】Canvasを親要素から「独立」させる */
-canvas {
-    display: block;
-    position: fixed;    /* カラムの枠を無視して画面全体に対して配置 */
-    top: 0;
-    left: 0;
-    width: 100vw !important;  /* 画面幅いっぱいに強制 */
-    height: 100vh !important; /* 画面高さいっぱいに強制 */
-    z-index: -1;       /* 他のUI（ボタン等）より背面なら低く、前面なら高く調整 */
-    pointer-events: none; /* Canvasの下にあるボタンを触れるようにする */
-}
-        .main-ui-container {
-            position: absolute; right: 15px; top: 90px; bottom: 50px;
-            display: flex; flex-direction: row; align-items: flex-start; gap: 25px; z-index: 20; pointer-events: none;
+    /* Canvasを親要素から独立 */
+    canvas {
+        display: block; position: fixed; top: 0; left: 0;
+        width: 100vw !important; height: 100vh !important;
+        z-index: -1; pointer-events: none;
+    }
+
+    .main-ui-container {
+        position: absolute; right: 15px; top: 90px; bottom: 50px;
+        display: flex; flex-direction: row; align-items: flex-start; gap: 25px; z-index: 20; pointer-events: none;
+    }
+
+    /* --- デフォルト（iPhone 8 / 共通ベース） --- */
+    #info-overlay { 
+        display: flex; flex-direction: column; align-items: flex-end; text-align: right; 
+        height: 100%; justify-content: center; 
+    }
+
+    #rpm_val { 
+        font-size: 11vh; font-weight: 900; line-height: 0.8; 
+        text-shadow: 3px 3px 10px #000; margin-bottom: 15px; 
+    }
+
+    #display1 { 
+        font-size: 17vh; letter-spacing: 1px; 
+        transform: scaleX(0.95); transform-origin: right; 
+        font-weight: 900; line-height: 0.8; color: var(--hrc-white); 
+        text-shadow: 4px 4px 15px #000; white-space: nowrap; display: inline-block; 
+    }
+
+    #display { font-size: 3.5vh; color: #bbb; text-shadow: 1px 1px 6px #000; margin-top: 5px; }
+
+    #lap-panel { width: 140px; height: 100%; display: flex; flex-direction: column; border-top: none; overflow: hidden; padding-top: 30px; }
+    #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    #lap::-webkit-scrollbar { display: none; }
+    .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
+    .best-lap { color: var(--hrc-red); }
+
+    .data-panel { display: flex; flex-direction: column; gap: 12px; width: 90px; padding-top: 30px; }
+    .data-box { display: flex; flex-direction: column; align-items: flex-end; }
+    .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
+    .val { font-size: 32px; font-weight: 900; line-height: 0.9; }
+
+    footer { height: 45px; display: flex; gap: 4px; padding: 3px; background: #000; border-top: 1px solid #333; z-index: 100; position: fixed; bottom: 0; left: 0; right: 0; padding-bottom: env(safe-area-inset-bottom); }
+    button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: auto; }
+    #saveLogBtn { background: #155724; display: none; }
+    .demo-active { animation: demoBlink 1s infinite; }
+    @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
+
+    /* --- iPhone 8 横画面：微調整（右下げ・左上げ・枠線消去） --- */
+    @media screen and (max-width: 667px) and (orientation: landscape) {
+        .main-ui-container { position: absolute !important; top: 0; left: 0; right: 0; bottom: 0 !important; width: 100% !important; height: 100% !important; pointer-events: none !important; }
+
+        .data-panel { position: absolute !important; right: 12px !important; top: 65px !important; width: 80px !important; display: flex !important; flex-direction: column !important; gap: 4px !important; pointer-events: auto !important; }
+
+        #lap-panel { 
+            position: absolute !important; right: 110px !important; top: 65px !important; bottom: 35px !important; width: 115px !important; 
+            border: 0px none transparent !important; outline: none !important; box-shadow: none !important; background: none !important;
+            display: flex !important; flex-direction: column !important; pointer-events: auto !important;
         }
 
-        #info-overlay { display: flex; flex-direction: column; align-items: flex-end; text-align: right; height: 100%; justify-content: center; }
-        #rpm_val { font-size: 11vh; font-weight: 900; line-height: 0.8; text-shadow: 3px 3px 10px #000; margin-bottom: 15px; }
-        #display1 { font-size: 17vh; letter-spacing: 1px; transform: scaleX(0.95); transform-origin: right; font-weight: 900; line-height: 0.8; color: var(--hrc-white); text-shadow: 4px 4px 15px #000; white-space: nowrap; display: inline-block; }
-        #display { font-size: 3.5vh; color: #bbb; text-shadow: 1px 1px 6px #000; margin-top: 5px; }
+        #lap, .lap-row { border: 0px none transparent !important; outline: none !important; box-shadow: none !important; }
+        .lap-row { display: flex !important; justify-content: space-between !important; border-top: 1px solid rgba(255,255,255,0.1) !important; padding: 4px 0 !important; font-size: 13px !important; }
 
-        #lap-panel { width: 140px; height: 100%; display: flex; flex-direction: column; border-top: none; overflow: hidden; padding-top: 30px; }
-        #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        #lap::-webkit-scrollbar { display: none; }
-        .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
-        .best-lap { color: var(--hrc-red); }
+        #info-overlay { 
+            position: absolute !important; right: 255px !important; top: 20px !important; 
+            display: flex !important; flex-direction: column !important; align-items: flex-end !important; pointer-events: auto !important;
+        }
 
-        .data-panel { display: flex; flex-direction: column; gap: 12px; width: 90px; padding-top: 30px; }
-        .data-box { display: flex; flex-direction: column; align-items: flex-end; }
-        .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
-        .val { font-size: 32px; font-weight: 900; line-height: 0.9; }
-
-        footer { height: 45px; display: flex; gap: 4px; padding: 3px; background: #000; border-top: 1px solid #333; z-index: 100; position: fixed; bottom: 0; left: 0; right: 0; padding-bottom: env(safe-area-inset-bottom); }
-        button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: auto; }
-        #saveLogBtn { background: #155724; display: none; }
-        .demo-active { animation: demoBlink 1s infinite; }
-        @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面：各要素の高度と配置を個別に完全固定 */
-/* iPhone 8 横画面：右側を下げ、左側を上げ、枠線を完全消去 */
-@media screen and (max-width: 667px) and (orientation: landscape) {
-
-    /* 1. 全体ベース：透明なレイヤーとして定義 */
-    .main-ui-container {
-        position: absolute !important;
-        top: 0; left: 0; right: 0; bottom: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        pointer-events: none !important;
+        #display { font-size: 3.5vh !important; margin-bottom: -5px !important; }
+        #rpm_val { font-size: 9vh !important; line-height: 0.9 !important; margin-bottom: 10px !important; }
+        #display1 { font-size: 18vh !important; line-height: 0.8 !important; text-shadow: 2px 2px 8px #000 !important; margin-top: 0 !important; }
     }
 
-    /* 2. 右側（SPEED/MAX/TEMP）：バーから少し下げて配置 */
-    .data-panel {
-        position: absolute !important;
-        right: 12px !important;
-        /* ★バーから離す：45pxから65pxへ下げました */
-        top: 65px !important; 
-        width: 80px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 4px !important;
-        pointer-events: auto !important;
+    /* --- AQUOS（幅400px以上）専用：文字の「細長い」のを直す --- */
+    @media screen and (min-width: 400px) and (orientation: landscape) {
+        #display1, #rpm_val {
+            transform: scaleX(1.0) !important; /* 圧縮(0.95)を解除して太く見せる */
+            transform-origin: right;
+        }
     }
-
-    /* 3. 中央（ラップ履歴）：右側に合わせて下げ、枠線を抹殺 */
-    #lap-panel {
-        position: absolute !important;
-        right: 110px !important; 
-        /* ★右側に合わせて下げ：45pxから65pxへ */
-        top: 65px !important;    
-        bottom: 35px !important; 
-        width: 115px !important;
-        /* --- 枠線・背景を物理的に根絶 --- */
-        border: 0px none transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-        background: none !important;
-        display: flex !important;
-        flex-direction: column !important;
-        pointer-events: auto !important;
-    }
-
-    /* 履歴リスト本体と各行の枠線もすべて消す */
-    #lap, .lap-row {
-        border: 0px none transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
-    .lap-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 薄い区切り線のみ残す */
-        padding: 4px 0 !important;
-        font-size: 13px !important;
-    }
-
-    /* 4. 左側（RPM/ラップ/TOTAL）：バーに近づけるよう上げる */
-    #info-overlay {
-        position: absolute !important;
-        right: 255px !important; 
-        /* ★バーに近づける：80pxから60pxへ上げました */
-        top: 30px !important;   
-        top: 20px !important;   
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-end !important;
-        pointer-events: auto !important;
-    }
-
-    /* TOTAL表示：回転数にさらに近づける */
-    #display {
-        font-size: 3.5vh !important;
-        margin-bottom: -5px !important; 
-    }
-
-    /* 回転数(RPM)：ラップ表示と密着させる */
-    #rpm_val {
-        font-size: 9vh !important;
-        line-height: 0.9 !important;
-        margin-bottom: 10px !important; 
-    }
-
-    /* ラップ表示：巨大な数字 */
-    #display1 {
-        font-size: 18vh !important;
-        line-height: 0.8 !important;
-        text-shadow: 2px 2px 8px #000 !important;
-        margin-top: 0 !important; 
-    }
-}
-    </style>
+</style>
 </head>
 <body>
 
