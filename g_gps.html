@@ -62,32 +62,84 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面：個別の下線もすべて消し去る設定 */
+/* iPhone 8 横画面：全体を右側に寄せ、重なりとはみ出しを同時に解決 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 全体の位置を上に逃がす（ボタン回避） */
+    /* 1. 全体コンテナ：右端を基準にし、余計な広がりをカット */
     .main-ui-container {
+        position: absolute !important;
+        right: 0px !important;
         bottom: 110px !important; 
+        width: auto !important; /* 100%からautoに変更し、右側に固める */
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-end !important;
+        align-items: flex-end !important;
+        padding-right: 10px !important;
+        gap: 8px !important; /* ★パネル間の隙間を8pxまで詰め、一体感を出す */
     }
 
-    /* 履歴パネルの外枠を消す */
-    #lap-panel {
-        border: none !important;
-        background: none !important;
+    /* 2. ラップタイム表示部：サイズを「高さ」ではなく「幅」で制限 */
+    #info-overlay {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-end !important;
+        padding-right: 5px !important; /* 履歴との隙間を最小限に */
+        max-width: 260px !important; /* ★左へのはみ出しを物理的に食い止める */
     }
 
-    /* ★ここが重要：1行ごとの「下線」を強制消去 */
-    .lap-row {
-        border-bottom: none !important; /* 元のCSSの下線を消す */
-        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 代わりに極薄の上線を入れる（不要ならここもnoneに） */
-        padding: 4px 0 !important;
-        font-size: 14px !important;
-    }
-    
-    /* 巨大なラップタイム表示 */
     #display1 {
-        font-size: 19vh !important;
-        padding-right: 15px !important;
+        font-size: 17vh !important; /* 19vhから17vhへ微調整（はみ出し防止の限界値） */
+        font-weight: 900 !important;
+        text-align: right !important;
+        line-height: 0.8 !important;
+        white-space: nowrap !important;
+        text-shadow: 4px 4px 12px #000 !important;
+    }
+
+    #rpm_val {
+        font-size: 9vh !important;
+        margin-bottom: 2px !important;
+    }
+
+    /* 3. ラップ履歴：幅をさらに絞って左側のスペースを空ける */
+    #lap-panel {
+        width: 105px !important; /* 115pxから105pxへ */
+        min-width: 105px !important;
+        max-height: 140px !important;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    #lap {
+        display: flex !important;
+        flex-direction: column !important;
+        border: none !important;
+    }
+
+    .lap-row {
+        font-size: 13px !important; /* 14pxから13pxへ微減 */
+        padding: 3px 0 !important;
+        border-bottom: none !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+    }
+
+    /* 4. SPEED / MAX / TEMP パネル（一番右）：最小幅に */
+    .data-panel {
+        width: 80px !important; /* 85pxから80pxへ */
+        min-width: 80px !important;
+        gap: 3px !important;
+    }
+
+    .val {
+        font-size: 30px !important; /* 32pxから30pxへ */
+        line-height: 0.85 !important;
+        text-align: right !important;
+    }
+
+    .label {
+        font-size: 9px !important;
     }
 }
     </style>
