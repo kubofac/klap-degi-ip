@@ -61,67 +61,78 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-    /* --- iPhone 8 横画面 (667x375) 専用レイアウト調整 --- */
-/* iPhone 8 横画面：履歴の並び順と重なりをCSSのみで修正 */
-/* iPhone 8 横画面：履歴の並び順を「上が最新」に完全固定 */
-@media screen and (max-width: 667px) and (orientation: landscape) {
+ @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体の位置をさらに上げ、ボタンとの干渉を回避 */
+    /* 1. 全体コンテナ：さらに上に引き上げ (bottom: 110px) */
     .main-ui-container {
         position: absolute !important;
         right: 0px !important;
-        bottom: 105px !important; /* さらに少し上げました */
+        bottom: 110px !important; 
         width: 100% !important;
         display: flex !important;
         flex-direction: row !important;
         justify-content: flex-end !important;
         align-items: flex-end !important;
-        padding-right: 12px !important;
+        padding-right: 15px !important;
+        gap: 15px !important;
     }
 
-    /* 2. ラップ履歴パネルの構造修正 */
-    #lap-panel {
-        width: 120px !important;
-        min-width: 120px !important;
-        max-height: 140px !important;
-        border: none !important;
-        background: transparent !important;
-        overflow: hidden !important; /* はみ出しをカット */
+    /* 2. ラップタイム（左側）：巨大化 */
+    #info-overlay {
+        flex: 1 !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: flex-end !important; /* ★中身を下に溜めず、上から並べるための土台 */
+        align-items: flex-end !important;
     }
 
-    /* 3. 履歴リスト本体：ここが「上が最新」の決め手 */
+    #display1 {
+        font-size: 19vh !important;
+        line-height: 0.8 !important;
+        text-shadow: 4px 4px 10px #000 !important;
+        padding-right: 10px !important;
+    }
+
+    /* 3. ラップ履歴：枠線を徹底排除 */
+    #lap-panel {
+        width: 115px !important;
+        min-width: 115px !important;
+        max-height: 150px !important;
+        border: none !important;      /* 枠線削除 */
+        background: none !important;  /* 背景削除 */
+        padding-top: 0 !important;
+        overflow: hidden !important;
+    }
+
     #lap {
         display: flex !important;
-        flex-direction: column-reverse !important; /* ★JSが下に追加しても、見た目は上が最新になる */
-        justify-content: flex-start !important;    /* ★上端に吸着させる */
-        overflow-y: auto !important;
-        height: auto !important;
-        width: 100% !important;
+        flex-direction: column !important; /* JSのprependに合わせて通常順に */
+        justify-content: flex-start !important;
+        border: none !important;
     }
 
     .lap-row {
-        flex-shrink: 0 !important; /* 要素が潰れるのを防ぐ */
         font-size: 14px !important;
         padding: 4px 0 !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important;
-        display: flex !important;
-        justify-content: space-between !important;
+        border: none !important;       /* 行の線も削除 */
+        /* 文字が重なって見える場合は、わずかに上線を入れると見やすくなります */
+        border-top: 1px solid rgba(255,255,255,0.1) !important; 
     }
 
-    /* 4. SPEED / MAX / TEMP パネル（一番右） */
+    /* 4. SPEED / MAX / TEMP パネル（右端） */
     .data-panel {
         width: 85px !important;
-        gap: 2px !important; /* 項目間をさらに詰めてコンパクトに */
+        gap: 3px !important;
     }
 
-    /* ラップタイム表示（一番左）の巨大化維持 */
-    #display1 {
-        font-size: 19vh !important; /* 視認性向上のためさらに1%アップ */
-        line-height: 0.8 !important;
-        padding-right: 15px !important;
+    .val {
+        font-size: 32px !important;
+        line-height: 0.85 !important;
+        text-align: right !important;
+    }
+
+    .label {
+        font-size: 9px !important;
+        text-align: right !important;
     }
 }
     </style>
@@ -314,7 +325,7 @@ function processLap(exactTime, useFreeze) {
     const best = Math.min(...lapRecords);
     lapRecords.forEach((t, i) => {
         const r = document.createElement('div'); r.className = `lap-row ${t === best ? 'best-lap' : ''}`;
-        r.innerHTML = `<span>L${lapRecords.length-i}</span><span>${timeFormat(t)}</span>`; d.appendChild(r);
+        r.innerHTML = `<span>L${lapRecords.length-i}</span><span>${timeFormat(t)}</span>`; d.prepend(r);
     });
     if (useFreeze) { 
         isFrozen = true; 
