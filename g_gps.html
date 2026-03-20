@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>KLAP DEGI ULTIMATE V2 - LOGGING</title>
      <link rel="manifest" href="/manifest.json">
-   <style>
+ <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
     
     body, html {
@@ -94,19 +94,16 @@
 
     /* --- AQUOS専用：文字サイズと文字幅の底上げ --- */
     @media screen and (min-width: 400px) and (orientation: landscape) {
-        /* 1. ラップタイムとRPMを太くし、視認性アップ */
         #display1, #rpm_val { transform: scaleX(1.0) !important; transform-origin: right; }
         
-        /* 2. SPEEDなどの数値（.val）とラベル（.label）を大きく */
-        .val { font-size: 42px !important; } /* 32pxから大幅アップ */
-        .label { font-size: 14px !important; } /* 10pxからアップ */
+        .val { font-size: 42px !important; } 
+        .label { font-size: 14px !important; } 
         
-        /* 3. ラップ履歴の文字サイズアップ */
-        .lap-row { font-size: 16px !important; } /* 13pxからアップ */
-        
-        /* 4. パネル自体の幅を少し広げて、文字が切れないように調整 */
+        /* ラップ履歴をさらに大きく(18px)し、パネル幅を微増(145px) */
+        .lap-row { font-size: 18px !important; } 
+        #lap-panel { width: 145px !important; }
+
         .data-panel { width: 110px !important; }
-        #lap-panel { width: 140px !important; }
     }
 </style>
 </head>
