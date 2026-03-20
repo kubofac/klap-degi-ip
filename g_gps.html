@@ -62,12 +62,10 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面：回転数とラップをさらに上げ、履歴との距離を最適化 */
-/* iPhone 8 横画面：バー直下まで上げ、履歴の3桁目とSPEEDの重なりを物理的に分離 */
-/* iPhone 8 横画面：限界まで上寄せしつつ、RPMとラップの重なりを回避 */
+/* iPhone 8 横画面：各要素の高度と配置を個別に完全固定 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：ベース設定 */
+    /* 1. 全体ベース：余計な干渉を排除 */
     .main-ui-container {
         position: absolute !important;
         top: 0; left: 0; right: 0; bottom: 0 !important;
@@ -76,87 +74,78 @@ canvas {
         pointer-events: none !important;
     }
 
-    /* 2. ラップタイム表示部：行間を詰めて「上」へ。履歴との距離も確保 */
-    #info-overlay {
+    /* 2. 右側ユニット（SPEED/MAX/TEMP）：バー直下まで上げる */
+    .data-panel {
         position: absolute !important;
-        /* 履歴のLとの重なりを防ぐため右端から大きく離す */
-        right: 265px !important; 
-        /* ★限界の上高さ：上から45px（ステータスバーのすぐ下） */
-        top: 45px !important; 
+        right: 10px !important;
+        top: 45px !important; /* ★バー直下 */
+        width: 80px !important;
         display: flex !important;
         flex-direction: column !important;
-        align-items: flex-end !important;
-        /* ★RPMとラップの隙間をマイナス気味に詰めて重なりを防止 */
-        gap: -2px !important; 
+        gap: 4px !important;
         pointer-events: auto !important;
     }
 
-    #display1 {
-        font-size: 18vh !important;
-        line-height: 0.75 !important; /* 行間をさらにタイトに */
-        text-shadow: 2px 2px 8px #000 !important;
-        white-space: nowrap !important;
-    }
-
-    /* 回転数(RPM)表示：ラップタイムとの距離を調整 */
-    #display {
-        font-size: 3.5vh !important;
-        margin-bottom: -5px !important; /* 下の数値との隙間を詰める */
-    }
-
-    #rpm_val {
-        font-size: 9vh !important;
-        line-height: 1.0 !important;
-        margin-bottom: 0px !important;
-    }
-
-    /* 3. ラップ履歴（中央）：3桁目が欠けないよう位置を微調整 */
+    /* 3. 中央ユニット（ラップ履歴）：バー直下からボタン付近まで */
     #lap-panel {
         position: absolute !important;
-        /* SPEED(80px) + 余裕(30px) = 110px 地点 */
-        right: 110px !important; 
-        top: 45px !important;    /* SPEED/RPMと高さを完全に揃える */
-        bottom: 35px !important; 
-        width: 110px !important; 
-        border: 0 !important;
+        right: 105px !important; /* SPEEDとの隙間を確保 */
+        top: 45px !important;    /* ★バー直下 */
+        bottom: 35px !important; /* ★ボタン付近まで伸ばす */
+        width: 115px !important;
+        /* 枠線・背景を徹底的に抹殺 */
+        border: 0px none transparent !important;
+        outline: none !important;
+        box-shadow: none !important;
         background: transparent !important;
         display: flex !important;
         flex-direction: column !important;
         pointer-events: auto !important;
     }
 
-    #lap {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow-y: auto !important;
-        border: 0 !important;
-    }
+    #lap { border: 0 !important; }
 
+    /* 履歴の各行：枠線を消し、文字間を調整 */
     .lap-row {
         display: flex !important;
         justify-content: space-between !important;
-        font-size: 13px !important;
+        border: 0 !important; /* 全ての枠線を消す */
+        border-bottom: 0 !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 最小限の区切り線 */
         padding: 4px 0 !important;
-        border: 0 !important; 
-        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        font-size: 13px !important;
     }
 
-    /* 4. SPEED / MAX / TEMP（右端）：高い位置に固定 */
-    .data-panel {
+    /* 4. 左側ユニット（RPM/ラップ/TOTAL）：バーを避け、適切な高さに配置 */
+    #info-overlay {
         position: absolute !important;
-        right: 10px !important; 
-        top: 45px !important; 
-        width: 80px !important;
+        right: 255px !important; /* 履歴のLと重ならない距離 */
+        top: 80px !important;   /* ★あえて少し下げて「バー重なり」を回避 */
         display: flex !important;
         flex-direction: column !important;
-        gap: 6px !important;
+        align-items: flex-end !important;
         pointer-events: auto !important;
     }
 
-    .val {
-        font-size: 30px !important;
-        line-height: 0.85 !important;
+    /* TOTAL（1カラム目など）も一括で制御 */
+    #display {
+        font-size: 3.5vh !important;
+        margin-bottom: -2px !important; /* ラップ表示に近づける */
+        color: #999;
+    }
+
+    #rpm_val {
+        font-size: 9vh !important;
+        line-height: 1.0 !important;
+        margin-bottom: 2px !important;
+    }
+
+    #display1 {
+        font-size: 18vh !important;
+        line-height: 0.8 !important;
+        text-shadow: 2px 2px 8px #000 !important;
+        /* ラップ表示と回転数を近づける */
+        margin-top: -5px !important; 
     }
 }
     </style>
