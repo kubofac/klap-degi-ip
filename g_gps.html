@@ -62,8 +62,8 @@ canvas {
         #saveLogBtn { background: #155724; display: none; }
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
-/* iPhone 8 横画面：微調整済みの配置をベースに、文字幅のみデバイス別最適化 */
-@media screen and (max-width: 667px) and (orientation: landscape) {
+/* iPhone 8 から AQUOS までの横画面最適化：縦長感の解消と高位置の維持 */
+@media screen and (max-width: 960px) and (orientation: landscape) {
 
     /* 1. 全体コンテナ */
     .main-ui-container {
@@ -74,7 +74,7 @@ canvas {
         pointer-events: none !important;
     }
 
-    /* 2. 右側（SPEED/MAX/TEMP）：微調整後の位置(65px)を維持 */
+    /* 2. 右側（SPEED/MAX/TEMP）：微調整後の位置(65px) */
     .data-panel {
         position: absolute !important;
         right: 12px !important;
@@ -86,7 +86,7 @@ canvas {
         pointer-events: auto !important;
     }
 
-    /* 3. 中央（ラップ履歴）：微調整後の位置(65px)と枠線抹殺を維持 */
+    /* 3. 中央（ラップ履歴）：微調整後の位置(65px)と枠線なし */
     #lap-panel {
         position: absolute !important;
         right: 110px !important; 
@@ -109,55 +109,67 @@ canvas {
         font-size: 13px !important;
     }
 
-    /* 4. 左側（RPM/ラップ/TOTAL）：あなたが指定した「高い位置(20px)」を死守 */
+    /* 4. 左側（RPM/ラップ/TOTAL）：あなたが指定した「高い位置(20px)」を固定 */
     #info-overlay {
         position: absolute !important;
         right: 255px !important; 
-        top: 20px !important;   /* ★ここが「上がっている」ポイント */
+        top: 20px !important;   
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
         pointer-events: auto !important;
     }
 
-    /* TOTAL表示：回転数に密着 */
-    #display {
-        font-size: 3.5vh !important;
-        margin-bottom: -5px !important; 
-    }
-
-    /* 回転数(RPM)：ラップ表示と密着 */
-    #rpm_val {
-        font-size: 9vh !important;
-        line-height: 0.9 !important;
-        margin-bottom: 10px !important; /* ★ここも微調整済み数値を維持 */
-    }
-
-    /* --------------------------------------------------
-       【ここが重要】AQUOS(400px〜)の時だけ、文字の「細長さ」を解除
-       -------------------------------------------------- */
-    @media screen and (min-width: 391px) {
-        #display1 {
-            transform: scaleX(1.0) !important;  /* ★1.0(等倍)にして太く見せる */
-            letter-spacing: 1px !important;     /* 文字の間隔を広げる */
-        }
-        #rpm_val {
-            transform: scaleX(1.0) !important;  /* RPMも太く */
-        }
-        #info-overlay {
-            /* 広い画面なら、履歴パネルとの隙間を少し広げて視認性UP */
-            right: calc(255px + 2vw) !important;
-        }
-    }
-
-    /* ラップ表示：巨大な数字（デフォルトはiPhone用の0.95倍） */
+    /* --- デフォルト設定（iPhone 8 用） --- */
     #display1 {
         font-size: 18vh !important;
         line-height: 0.8 !important;
-        transform: scaleX(0.95); /* iPhone 8用：少し細くして重なりを回避 */
+        transform: scaleX(0.95) !important; /* iPhoneは少しスリムに */
         text-shadow: 2px 2px 8px #000 !important;
-        margin-top: 0 !important; 
         white-space: nowrap !important;
+        font-weight: 900 !important;
+    }
+
+    #rpm_val {
+        font-size: 9vh !important;
+        line-height: 0.9 !important;
+        margin-bottom: 10px !important;
+        font-weight: 900 !important;
+    }
+
+    #display { font-size: 3.5vh !important; margin-bottom: -5px !important; }
+
+    /* --------------------------------------------------
+       【AQUOS/広画角デバイス特化】縦長感を打ち消すワイド設定
+       -------------------------------------------------- */
+    @media screen and (min-width: 391px) {
+        #display1 {
+            /* 縦長を抑えるため高さを下げ、横に1.15倍引き伸ばす */
+            font-size: 16vh !important; 
+            transform: scaleX(1.15) !important; 
+            letter-spacing: 4px !important;
+            transform-origin: right;
+        }
+
+        #rpm_val {
+            /* 回転数も横にワイド化 */
+            transform: scaleX(1.1) !important;
+            font-size: 8.5vh !important;
+            letter-spacing: 2px !important;
+            transform-origin: right;
+        }
+
+        #info-overlay {
+            /* ワイドにした分、履歴パネルに刺さらないよう左へオフセット */
+            right: calc(265px + 2vw) !important;
+        }
+
+        /* SPEED等の数字も「縦長棒」にならないよう補正 */
+        .val {
+            transform: scaleX(1.1) !important;
+            transform-origin: right;
+            letter-spacing: 1px !important;
+        }
     }
 }
     </style>
