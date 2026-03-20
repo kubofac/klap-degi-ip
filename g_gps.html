@@ -63,9 +63,10 @@ canvas {
         .demo-active { animation: demoBlink 1s infinite; }
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
 /* iPhone 8 横画面：各要素の高度と配置を個別に完全固定 */
+/* iPhone 8 横画面：右側を下げ、左側を上げ、枠線を完全消去 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体ベース：余計な干渉を排除 */
+    /* 1. 全体ベース：透明なレイヤーとして定義 */
     .main-ui-container {
         position: absolute !important;
         top: 0; left: 0; right: 0; bottom: 0 !important;
@@ -74,11 +75,12 @@ canvas {
         pointer-events: none !important;
     }
 
-    /* 2. 右側ユニット（SPEED/MAX/TEMP）：バー直下まで上げる */
+    /* 2. 右側（SPEED/MAX/TEMP）：バーから少し下げて配置 */
     .data-panel {
         position: absolute !important;
-        right: 10px !important;
-        top: 45px !important; /* ★バー直下 */
+        right: 12px !important;
+        /* ★バーから離す：45pxから65pxへ下げました */
+        top: 65px !important; 
         width: 80px !important;
         display: flex !important;
         flex-direction: column !important;
@@ -86,66 +88,70 @@ canvas {
         pointer-events: auto !important;
     }
 
-    /* 3. 中央ユニット（ラップ履歴）：バー直下からボタン付近まで */
+    /* 3. 中央（ラップ履歴）：右側に合わせて下げ、枠線を抹殺 */
     #lap-panel {
         position: absolute !important;
-        right: 105px !important; /* SPEEDとの隙間を確保 */
-        top: 45px !important;    /* ★バー直下 */
-        bottom: 35px !important; /* ★ボタン付近まで伸ばす */
+        right: 110px !important; 
+        /* ★右側に合わせて下げ：45pxから65pxへ */
+        top: 65px !important;    
+        bottom: 35px !important; 
         width: 115px !important;
-        /* 枠線・背景を徹底的に抹殺 */
+        /* --- 枠線・背景を物理的に根絶 --- */
         border: 0px none transparent !important;
         outline: none !important;
         box-shadow: none !important;
-        background: transparent !important;
+        background: none !important;
         display: flex !important;
         flex-direction: column !important;
         pointer-events: auto !important;
     }
 
-    #lap { border: 0 !important; }
+    /* 履歴リスト本体と各行の枠線もすべて消す */
+    #lap, .lap-row {
+        border: 0px none transparent !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
 
-    /* 履歴の各行：枠線を消し、文字間を調整 */
     .lap-row {
         display: flex !important;
         justify-content: space-between !important;
-        border: 0 !important; /* 全ての枠線を消す */
-        border-bottom: 0 !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 最小限の区切り線 */
+        border-top: 1px solid rgba(255,255,255,0.1) !important; /* 薄い区切り線のみ残す */
         padding: 4px 0 !important;
         font-size: 13px !important;
     }
 
-    /* 4. 左側ユニット（RPM/ラップ/TOTAL）：バーを避け、適切な高さに配置 */
+    /* 4. 左側（RPM/ラップ/TOTAL）：バーに近づけるよう上げる */
     #info-overlay {
         position: absolute !important;
-        right: 255px !important; /* 履歴のLと重ならない距離 */
-        top: 80px !important;   /* ★あえて少し下げて「バー重なり」を回避 */
+        right: 255px !important; 
+        /* ★バーに近づける：80pxから60pxへ上げました */
+        top: 60px !important;   
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
         pointer-events: auto !important;
     }
 
-    /* TOTAL（1カラム目など）も一括で制御 */
+    /* TOTAL表示：回転数にさらに近づける */
     #display {
         font-size: 3.5vh !important;
-        margin-bottom: -2px !important; /* ラップ表示に近づける */
-        color: #999;
+        margin-bottom: -5px !important; 
     }
 
+    /* 回転数(RPM)：ラップ表示と密着させる */
     #rpm_val {
         font-size: 9vh !important;
-        line-height: 1.0 !important;
-        margin-bottom: 2px !important;
+        line-height: 0.9 !important;
+        margin-bottom: 0px !important; 
     }
 
+    /* ラップ表示：巨大な数字 */
     #display1 {
         font-size: 18vh !important;
         line-height: 0.8 !important;
         text-shadow: 2px 2px 8px #000 !important;
-        /* ラップ表示と回転数を近づける */
-        margin-top: -5px !important; 
+        margin-top: 0 !important; 
     }
 }
     </style>
