@@ -64,6 +64,7 @@ canvas {
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
 /* iPhone 8 横画面：回転数とラップをさらに上げ、履歴との距離を最適化 */
 /* iPhone 8 横画面：バー直下まで上げ、履歴の3桁目とSPEEDの重なりを物理的に分離 */
+/* iPhone 8 横画面：限界まで上寄せしつつ、RPMとラップの重なりを回避 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
     /* 1. 全体コンテナ：ベース設定 */
@@ -75,40 +76,48 @@ canvas {
         pointer-events: none !important;
     }
 
-    /* 2. ラップタイム表示（大きな数字）：さらに上げ、左へさらに逃がす */
+    /* 2. ラップタイム表示部：行間を詰めて「上」へ。履歴との距離も確保 */
     #info-overlay {
         position: absolute !important;
-        /* ★履歴のLとの重なりを完全に防ぐため、右端からさらに離す(240px → 260px) */
-        right: 260px !important; 
-        /* ★限界まで上へ：上から55px（ステータスバーのすぐ下） */
-        top: 55px !important; 
+        /* 履歴のLとの重なりを防ぐため右端から大きく離す */
+        right: 265px !important; 
+        /* ★限界の上高さ：上から45px（ステータスバーのすぐ下） */
+        top: 45px !important; 
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-end !important;
+        /* ★RPMとラップの隙間をマイナス気味に詰めて重なりを防止 */
+        gap: -2px !important; 
         pointer-events: auto !important;
     }
 
     #display1 {
         font-size: 18vh !important;
-        line-height: 0.8 !important;
+        line-height: 0.75 !important; /* 行間をさらにタイトに */
         text-shadow: 2px 2px 8px #000 !important;
         white-space: nowrap !important;
     }
 
-    #rpm_val {
-        font-size: 9vh !important;
-        margin-bottom: 2px !important;
+    /* 回転数(RPM)表示：ラップタイムとの距離を調整 */
+    #display {
+        font-size: 3.5vh !important;
+        margin-bottom: -5px !important; /* 下の数値との隙間を詰める */
     }
 
-    /* 3. ラップ履歴（中央）：SPEEDとの重なりを防ぐ位置固定 */
+    #rpm_val {
+        font-size: 9vh !important;
+        line-height: 1.0 !important;
+        margin-bottom: 0px !important;
+    }
+
+    /* 3. ラップ履歴（中央）：3桁目が欠けないよう位置を微調整 */
     #lap-panel {
         position: absolute !important;
-        /* ★SPEED(80px) + 隙間(25px) = 105px地点に配置し、3桁目が欠けるのを防ぐ */
-        right: 105px !important; 
-        top: 55px !important;    /* SPEEDパネルと高さを揃える */
-        bottom: 35px !important; /* ボタン付近までさらに伸ばす */
-        width: 110px !important; /* 3桁目が収まるよう幅をわずかに広げる */
-        min-width: 110px !important;
+        /* SPEED(80px) + 余裕(30px) = 110px 地点 */
+        right: 110px !important; 
+        top: 45px !important;    /* SPEED/RPMと高さを完全に揃える */
+        bottom: 35px !important; 
+        width: 110px !important; 
         border: 0 !important;
         background: transparent !important;
         display: flex !important;
@@ -136,8 +145,8 @@ canvas {
     /* 4. SPEED / MAX / TEMP（右端）：高い位置に固定 */
     .data-panel {
         position: absolute !important;
-        right: 10px !important; /* 画面右端に寄せる */
-        top: 55px !important; 
+        right: 10px !important; 
+        top: 45px !important; 
         width: 80px !important;
         display: flex !important;
         flex-direction: column !important;
