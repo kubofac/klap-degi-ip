@@ -63,83 +63,67 @@ canvas {
         @keyframes demoBlink { 0% {background-color: var(--hrc-orange); color: #000;} 50% {background-color: #885500; color: #000;} 100% {background-color: var(--hrc-orange); color: #000;} }
     /* --- iPhone 8 横画面 (667x375) 専用レイアウト調整 --- */
 /* iPhone 8 横画面：履歴の並び順と重なりをCSSのみで修正 */
+/* iPhone 8 横画面：履歴の並び順を「上が最新」に完全固定 */
 @media screen and (max-width: 667px) and (orientation: landscape) {
 
-    /* 1. 全体コンテナ：右端に寄せつつ、重ならないよう幅を確保 */
+    /* 1. 全体の位置をさらに上げ、ボタンとの干渉を回避 */
     .main-ui-container {
         position: absolute !important;
         right: 0px !important;
-        bottom: 85px !important; 
-        width: 100% !important; /* 画面全体を使って要素間の距離をとる */
+        bottom: 105px !important; /* さらに少し上げました */
+        width: 100% !important;
         display: flex !important;
         flex-direction: row !important;
         justify-content: flex-end !important;
         align-items: flex-end !important;
-        padding-right: 10px !important;
-        gap: 12px !important; /* パネル同士がぶつからない隙間 */
+        padding-right: 12px !important;
     }
 
-    /* 2. ラップタイム表示（一番左）：履歴に被らないよう左へ逃がす */
-    #info-overlay {
-        flex: 1 !important; /* 左側の空きスペースを埋める */
+    /* 2. ラップ履歴パネルの構造修正 */
+    #lap-panel {
+        width: 120px !important;
+        min-width: 120px !important;
+        max-height: 140px !important;
+        border: none !important;
+        background: transparent !important;
+        overflow: hidden !important; /* はみ出しをカット */
         display: flex !important;
         flex-direction: column !important;
-        align-items: flex-end !important;
-        padding-right: 15px !important; /* 履歴パネルとの間に「壁」を作る */
-        min-width: 0 !important;
+        justify-content: flex-end !important; /* ★中身を下に溜めず、上から並べるための土台 */
     }
 
-    #display1 {
-        font-size: 18vh !important; /* ★大きく表示 */
-        text-align: right !important;
-        line-height: 0.8 !important;
-        white-space: nowrap !important;
-        text-shadow: 4px 4px 10px #000 !important;
-    }
-
-    /* 3. ラップ履歴：【ここが重要】下から上へ（新しい順）に並べ替える */
-    #lap-panel {
-        width: 115px !important;
-        min-width: 115px !important;
-        max-height: 160px !important;
-        padding-top: 0 !important;
-        border-left: 1px solid rgba(255, 255, 255, 0.2); /* 境界線 */
-    }
-
+    /* 3. 履歴リスト本体：ここが「上が最新」の決め手 */
     #lap {
         display: flex !important;
-        flex-direction: column-reverse !important; /* ★JSをいじらずCSSで「下が最新」を「上が最新」に入れ替え */
-        justify-content: flex-end !important;
+        flex-direction: column-reverse !important; /* ★JSが下に追加しても、見た目は上が最新になる */
+        justify-content: flex-start !important;    /* ★上端に吸着させる */
         overflow-y: auto !important;
+        height: auto !important;
+        width: 100% !important;
     }
 
     .lap-row {
+        flex-shrink: 0 !important; /* 要素が潰れるのを防ぐ */
         font-size: 14px !important;
         padding: 4px 0 !important;
-        border-bottom: none !important;
-        border-top: 1px solid rgba(255,255,255,0.1); /* 区切り線を上に変更 */
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        display: flex !important;
+        justify-content: space-between !important;
     }
 
-    /* 4. SPEED/MAX/TEMPパネル（一番右）：右端吸着 */
+    /* 4. SPEED / MAX / TEMP パネル（一番右） */
     .data-panel {
         width: 85px !important;
-        min-width: 85px !important;
-        gap: 5px !important;
-    }
-    
-    .val {
-        font-size: 32px !important;
-        text-align: right !important;
-        width: 100% !important;
+        gap: 2px !important; /* 項目間をさらに詰めてコンパクトに */
     }
 
-    .label {
-        font-size: 9px !important;
-        text-align: right !important;
-        width: 100% !important;
+    /* ラップタイム表示（一番左）の巨大化維持 */
+    #display1 {
+        font-size: 19vh !important; /* 視認性向上のためさらに1%アップ */
+        line-height: 0.8 !important;
+        padding-right: 15px !important;
     }
 }
-    
     </style>
 </head>
 <body>
