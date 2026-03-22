@@ -314,7 +314,8 @@ document.getElementById('historyBtn').onclick = () => {
     document.getElementById('history-page').style.display='block';
 };
 document.getElementById('historyCloseBtn').onclick=()=>{document.getElementById('history-page').style.display='none';};
-
+localStorage.setItem('startLineLat', '34.825');
+localStorage.setItem('startLineLng', '137.452');
 window.onload = () => { 
     updateStatusColors(); // ボタンの色をチェック
     tick(); 
