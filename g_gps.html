@@ -201,15 +201,40 @@ document.getElementById('startBtn').onclick = () => {
 };
 
 document.getElementById('btConnect').onclick = async () => {
-    const device = await navigator.bluetooth.requestDevice({ filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }] });
-    const server = await device.gatt.connect();
-    const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-    const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
-    char.addEventListener('characteristicvaluechanged', (e) => {
-        const d = e.target.value;
-        if (d.byteLength >= 13) { currentRPM = (d.getUint16(11, true) * 60) / pulseCount; document.getElementById('temp_val').textContent = d.getUint8(10); }
-    });
-    await char.startNotifications();
+    try {
+        const device = await navigator.bluetooth.requestDevice({ 
+            filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }] 
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+        const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
+
+        char.addEventListener('characteristicvaluechanged', (e) => {
+            lastBleDataTime = Date.now();
+            const d = e.target.value;
+
+            // ESP32の packet[3] に合わせて修正
+            if (d.byteLength >= 3) {
+                // 1. 周波数(Hz)の取得: packet[0]とpacket[1]から16bit整数を作成
+                // リトルエンディアン(true)で読み取り
+                const hz = d.getUint16(0, true); 
+                
+                // 2. 回転数(RPM)への計算: V5.1準拠 (Hz * 60 / パルス設定)
+                currentRPM = (hz * 60) / pulseCount;
+
+                // 3. 温度の取得: packet[2]から取得
+                currentTemp = d.getUint8(2);
+                document.getElementById('temp_val').textContent = currentTemp;
+                
+                // 最高回転数の更新用
+                if (currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
+                if (currentRPM > sessionMaxRPM) sessionMaxRPM = currentRPM;
+            }
+        });
+        await char.startNotifications();
+    } catch (e) { 
+        console.error("BLE Error:", e); 
+    }
 };
 
 window.onload = () => { tick(); };
