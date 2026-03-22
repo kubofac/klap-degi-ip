@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>KLAP DEGI ULTIMATE V2 - LOGGING</title>
-     <link rel="manifest" href="/manifest.json">
+    <title>KLAP DEGI ULTIMATE V2 - PRECISION</title>
+    <link rel="manifest" href="/manifest.json">
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
     
@@ -30,7 +28,7 @@
         display: flex; flex-direction: row; align-items: flex-start; gap: 25px; z-index: 20; pointer-events: none;
     }
 
-    /* --- 【絶対死守】iPhone 8 / 共通ベース --- */
+    /* --- UIベース --- */
     #info-overlay { 
         display: flex; flex-direction: column; align-items: flex-end; text-align: right; 
         height: 100%; justify-content: center; 
@@ -44,7 +42,7 @@
     #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     #lap::-webkit-scrollbar { display: none; }
     .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
-    .best-lap { color: var(--hrc-red); }
+    .best-lap { color: var(--hrc-red) !important; }
 
     .data-panel { display: flex; flex-direction: column; gap: 12px; width: 90px; padding-top: 30px; }
     .data-box { display: flex; flex-direction: column; align-items: flex-end; }
@@ -54,12 +52,11 @@
     footer { height: 45px; display: flex; gap: 4px; padding: 3px; background: #000; border-top: 1px solid #333; z-index: 100; position: fixed; bottom: 0; left: 0; right: 0; padding-bottom: env(safe-area-inset-bottom); }
     button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: auto; }
 
-    /* --- 【絶対死守】iPhone 8 専用レイアウト（1pxも変えていません） --- */
+    /* --- iPhone 8 専用レイアウト --- */
     @media screen and (max-width: 667px) and (orientation: landscape) {
         .main-ui-container { position: absolute !important; top: 0; left: 0; right: 0; bottom: 0 !important; width: 100% !important; height: 100% !important; pointer-events: none !important; }
         .data-panel { position: absolute !important; right: 12px !important; top: 65px !important; width: 80px !important; display: flex !important; flex-direction: column !important; gap: 4px !important; pointer-events: auto !important; }
-        #lap-panel { position: absolute !important; right: 110px !important; top: 65px !important; bottom: 35px !important; width: 115px !important; border: 0px none transparent !important; outline: none !important; box-shadow: none !important; background: none !important; display: flex !important; flex-direction: column !important; pointer-events: auto !important; }
-        #lap, .lap-row { border: 0px none transparent !important; outline: none !important; box-shadow: none !important; }
+        #lap-panel { position: absolute !important; right: 110px !important; top: 65px !important; bottom: 35px !important; width: 115px !important; border: 0px none transparent !important; background: none !important; display: flex !important; flex-direction: column !important; pointer-events: auto !important; }
         .lap-row { display: flex !important; justify-content: space-between !important; border-top: 1px solid rgba(255,255,255,0.1) !important; padding: 4px 0 !important; font-size: 13px !important; }
         #info-overlay { position: absolute !important; right: 255px !important; top: 20px !important; display: flex !important; flex-direction: column !important; align-items: flex-end !important; pointer-events: auto !important; }
         #display { font-size: 3.5vh !important; margin-bottom: -5px !important; }
@@ -67,23 +64,14 @@
         #display1 { font-size: 18vh !important; line-height: 0.8 !important; text-shadow: 2px 2px 8px #000 !important; margin-top: 0 !important; }
     }
 
-    /* --- 【AQUOSのみ適用】文字拡大と重なり回避補正 --- */
+    /* --- AQUOS / 大画面補正 --- */
     @media screen and (min-width: 400px) and (orientation: landscape) {
-        /* 文字を太く戻す */
-        #display1, #rpm_val { transform: scaleX(1.0) !important; transform-origin: right !important; }
-        
-        /* 数値とラベルを拡大 */
+        #display1, #rpm_val { transform: scaleX(1.0) !important; }
         .val { font-size: 42px !important; } 
         .label { font-size: 14px !important; } 
-        
-        /* ラップ履歴を拡大 */
         .lap-row { font-size: 20px !important; gap: 20px !important; } 
         #lap-panel { width: 155px !important; } 
-
-        /* ★重なり回避：履歴が大きくなった分、ラップ表示をさらに左（履歴の左端）へ逃がす */
-        /* 履歴右端110px + 履歴幅155px + 余白30px = 295px */
         #info-overlay { right: 295px !important; }
-
         .data-panel { width: 110px !important; }
     }
 </style>
@@ -91,7 +79,7 @@
 <body>
 
 <div id="dashboard">
- <canvas id="canvas" width="800" height="400"></canvas>
+ <canvas id="canvas"></canvas>
     <div class="main-ui-container">
         <div id="info-overlay">
             <div id="rpm_val">0</div>
@@ -110,14 +98,17 @@
         <button id="btConnect">BLE START</button>
         <button id="startBtn">TIMER</button>
         <button id="lapBtn">LAP/RESET</button>
-        <button id="saveLogBtn">LOG SAVE</button>
+        <button id="saveLogBtn" style="display:none; background:var(--hrc-orange); color:#000;">LOG SAVE</button>
         <button id="reloadBtn">RELOAD</button>
     </footer>
 </div>
 
 <script>
 'use strict';
-const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b", PULSE_UUID = "f4deb353-a4cf-4ffb-badb-2a5f2e3bb630";
+// --- 1. 定数・変数定義 ---
+const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const PULSE_UUID = "f4deb353-a4cf-4ffb-badb-2a5f2e3bb630";
+
 let currentRPM = 0, currentTemp = 0, currentSpeedKmh = 0, maxSpeed = 0;
 let lastPos = null, lastLapTime = 0, pulseCount = 1;
 let LAP_LINE_P1 = { lat: 0, lon: 0 }, LAP_LINE_P2 = { lat: 0, lon: 0 };
@@ -125,118 +116,69 @@ let swState = 0, startTime = 0, lapStartTime = 0, lapRecords = [];
 let trackLogs = [], currentLapLog = [];
 let lastGpsDataTime = 0, lastBleDataTime = 0, watchId = null;
 let isFrozen = false, freezeDisplayTime = "", freezeStartTime = 0;
-let isDemoMode = false, demoClickCount = 0, demoInterval = null, wakeLock = null;
-let detectedDirection = null; // 最初の通過方向を保持 (null, 1, または -1)    
+let detectedDirection = null, wakeLock = null;
+
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
-// --- 1. 数学・地理計算ヘルパー (正確な判定用) ---
+// --- 2. 高精度交差判定ロジック (V5.1準拠) ---
+function getIntersection(p1, p2, line) {
+    if (!line || !line.p1.lat) return null;
+    const x1 = p1.lon, y1 = p1.lat, x2 = p2.lon, y2 = p2.lat;
+    const x3 = line.p1.lon, y3 = line.p1.lat, x4 = line.p2.lon, y4 = line.p2.lat;
 
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3;
-    const f1 = lat1 * Math.PI / 180, f2 = lat2 * Math.PI / 180;
-    const df = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(df/2)**2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+    const den = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+    if (Math.abs(den) < 1e-12) return null; 
 
-// 線分(p1-p2)とスタートライン(LAP_LINE_P1-P2)の交差および「向き」を計算
-// --- 修正箇所2: getIntersectionTime 関数のロジック更新 ---
-function getIntersectionTime(p1, p2) {
-    if (!LAP_LINE_P1.lat || !LAP_LINE_P2.lat) return null;
-    
-    const den = (LAP_LINE_P2.lon - LAP_LINE_P1.lon) * (p2.lat - p1.lat) - (LAP_LINE_P2.lat - LAP_LINE_P1.lat) * (p2.lon - p1.lon);
-    if (Math.abs(den) < 1e-10) return null; 
+    const t = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / den;
+    const u = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / den;
 
-    const t = ((LAP_LINE_P2.lon - LAP_LINE_P1.lon) * (LAP_LINE_P1.lat - p1.lat) - (LAP_LINE_P2.lat - LAP_LINE_P1.lat) * (LAP_LINE_P1.lon - p1.lon)) / den;
-    const u = ((p1.lat - p2.lat) * (LAP_LINE_P1.lon - p1.lon) - (p1.lon - p2.lon) * (LAP_LINE_P1.lat - p1.lat)) / den;
-
-    // tが0〜1なら「自車が今回の1ステップで線を跨いだ」
-    if (t >= 0 && t <= 1) {
-        // 方向判定 (外積)
-        const Lx = LAP_LINE_P2.lon - LAP_LINE_P1.lon;
-        const Ly = LAP_LINE_P2.lat - LAP_LINE_P1.lat;
-        const Vx = p2.lon - p1.lon;
-        const Vy = p2.lat - p1.lat;
-        const crossProduct = (Lx * Vy) - (Ly * Vx);
-        const currentMoveDir = crossProduct > 0 ? 1 : -1;
-
-        // 初回通過時に方向を記憶
-        if (detectedDirection === null) {
-            detectedDirection = currentMoveDir;
-            console.log("Start direction memorized: " + detectedDirection);
-        }
-
-        // 記憶した方向と一致し、かつ設定したラインの幅(u)の中にいるか（遊び±20%）
-        if (currentMoveDir === detectedDirection && u >= -0.2 && u <= 1.2) {
-            return p1.time + (p2.time - p1.time) * t;
-        }
+    if (t >= 0 && t <= 1 && u >= -0.2 && u <= 1.2) {
+        return { 
+            time: p1.time + (p2.time - p1.time) * t, 
+            dir: ((x4 - x3) * (y2 - y1) - (y4 - y3) * (x2 - x1)) > 0 ? 1 : -1 
+        };
     }
     return null;
 }
 
-// --- 2. GPS / BLE 通信 ---
+// --- 3. 共通判定ロジック (司令塔) ---
+function handleUpdate(lat, lon, now) {
+    if (swState !== 1) return;
 
+    if (currentSpeedKmh > maxSpeed) maxSpeed = currentSpeedKmh;
+
+    const currentPos = { lat, lon, time: now, rpm: currentRPM, temp: currentTemp, speed: currentSpeedKmh };
+    currentLapLog.push(currentPos);
+
+    if (lastPos && LAP_LINE_P1.lat !== 0) {
+        const line = { p1: LAP_LINE_P1, p2: LAP_LINE_P2 };
+        const hit = getIntersection(lastPos, currentPos, line);
+
+        if (hit) {
+            if (detectedDirection === null) detectedDirection = hit.dir;
+            const cd = parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000;
+
+            if (hit.dir === detectedDirection && (hit.time - lastLapTime > cd)) {
+                processLap(hit.time, true);
+            }
+        }
+    }
+    lastPos = currentPos;
+}
+
+// --- 4. GPS / BLE 通信 ---
 function startInternalGps() {
     if (watchId !== null) return;
-    
-    // スリープ防止（WakeLock API）
     if ("wakeLock" in navigator) {
         navigator.wakeLock.request("screen").then(w => wakeLock = w).catch(()=>{});
     }
     
     watchId = navigator.geolocation.watchPosition(pos => {
         lastGpsDataTime = Date.now();
-        
-        // 速度の更新（m/sからkm/hへ）
         currentSpeedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
         document.getElementById('speed_val').textContent = currentSpeedKmh;
-        
-        // 最高速の更新
-        if (swState === 1 && currentSpeedKmh > maxSpeed) {
-            maxSpeed = currentSpeedKmh;
-        }
-
-        const currentPos = { 
-            lat: pos.coords.latitude, 
-            lon: pos.coords.longitude, 
-            time: Date.now(), 
-            rpm: currentRPM, 
-            temp: currentTemp, 
-            speed: currentSpeedKmh 
-        };
-
-        if (swState === 1) {
-            // 現在のラップログにポイントを追加
-            currentLapLog.push(currentPos);
-            
-            if (lastPos) {
-                // 💡 線分交差・方向・カプセル幅(u)を統合判定
-                const intersectionTime = getIntersectionTime(lastPos, currentPos);
-
-                if (intersectionTime !== null) {
-                    const timeSinceLastLap = intersectionTime - lastLapTime;
-                    // ローカルストレージから不感帯（クールダウン）を取得（デフォルト15秒）
-                    const coolDown = parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000;
-                    
-                    // 💡 不感帯を過ぎていればラップ確定
-                    if (timeSinceLastLap >= coolDown) {
-                        // intersectionTime（補間計算された通過時刻）を使用して正確にラップを切る
-                        processLap(intersectionTime, true);
-                    }
-                }
-            }
-        }
-        // 前回の座標を保存
-        lastPos = currentPos;
-        
-    }, (error) => {
-        console.error("GPS Error: ", error);
-        alert("GPSの取得に失敗しました。設定を確認してください。");
-    }, { 
-        enableHighAccuracy: true, 
-        timeout: 5000, 
-        maximumAge: 0 
-    });
+        handleUpdate(pos.coords.latitude, pos.coords.longitude, Date.now());
+    }, null, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
 }
 
 async function ble() {
@@ -248,7 +190,15 @@ async function ble() {
         char.addEventListener('characteristicvaluechanged', (e) => {
             lastBleDataTime = Date.now();
             const d = e.target.value;
-            if (d.byteLength >= 3) {
+            if (d.byteLength >= 13) {
+                const lat = d.getInt32(0, true) / 1000000;
+                const lon = d.getInt32(4, true) / 1000000;
+                currentSpeedKmh = d.getUint16(8, true);
+                currentTemp = d.getUint8(10);
+                currentRPM = (d.getUint16(11, true) * 60) / pulseCount;
+                document.getElementById('temp_val').textContent = currentTemp;
+                handleUpdate(lat, lon, Date.now());
+            } else if (d.byteLength >= 3) { // 互換性維持
                 let hz = d.getUint8(0) | (d.getUint8(1) << 8);
                 currentRPM = (hz * 60) / pulseCount;
                 currentTemp = d.getUint8(2);
@@ -256,16 +206,15 @@ async function ble() {
             }
         });
         await char.startNotifications();
+        document.getElementById('btConnect').textContent = "BLE FIXED";
     } catch (e) { console.error(e); }
 }
 
-// --- 3. ラップ計測・ロギング ---
-
+// --- 5. ラップ処理・ログ保存 ---
 function processLap(exactTime, useFreeze) {
     const lapTime = exactTime - (lapStartTime || startTime);
     if (lapTime <= 0) return;
 
-    // 配列の先頭に新しいタイムを追加（[0]が常に最新）
     lapRecords.unshift(lapTime);
     trackLogs.push([...currentLapLog]);
     currentLapLog = [];
@@ -274,20 +223,13 @@ function processLap(exactTime, useFreeze) {
     lastLapTime = exactTime;
 
     const d = document.getElementById('lap'); 
-    d.innerHTML = ""; // 表示をクリア
+    d.innerHTML = "";
     const best = Math.min(...lapRecords);
 
-    // [0]番目(最新)から順にループして表示
     lapRecords.forEach((t, i) => {
         const r = document.createElement('div'); 
-        // クラス名を付与（ベストラップなら赤字にするため）
         r.className = `lap-row ${t === best ? 'best-lap' : ''}`;
-        
-        // L番号の計算：全件数 - ループ回数 (例: 5件中 0回目なら L5)
-        const lapNumber = lapRecords.length - i;
-        r.innerHTML = `<span>L${lapNumber}</span><span>${timeFormat(t)}</span>`;
-        
-        // 順番に下へ追加（最初が最新なので、結果的に一番上が最新になる）
+        r.innerHTML = `<span>L${lapRecords.length - i}</span><span>${timeFormat(t)}</span>`;
         d.appendChild(r);
     });
 
@@ -300,55 +242,24 @@ function processLap(exactTime, useFreeze) {
 
 function exportGPX() {
     if (trackLogs.length === 0 && currentLapLog.length === 0) return;
-    
-    // 解析ソフトがラインを自動認識するためのメタデータ
-    const slData = `SL:${LAP_LINE_P1.lat},${LAP_LINE_P1.lon},${LAP_LINE_P2.lat},${LAP_LINE_P2.lon}`;
     const all = [...trackLogs, currentLapLog];
-    
-    // 全セッションの最初の1点目を「基準0秒」とする
     const sessionStartTime = all[0][0]?.time || Date.now();
 
-    let gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="KLAP_ULTIMATE" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
-<metadata>
-    <name>Race Session ${new Date().toLocaleString()}</name>
-    <desc>LINE_DATA[${slData}]</desc>
-</metadata>`;
-
+    let gpx = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP_ULTIMATE" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">`;
     all.forEach((lap, i) => {
         if (lap.length === 0) return;
         gpx += `\n<trk><name>Lap ${i + 1}</name><trkseg>`;
         lap.forEach(p => {
-            // 💡 2000年1月1日 00:00:00 UTC (946684800000ms) を基準に経過時間を加算
-            // これにより解析ソフトが「0秒から始まったクリーンなデータ」として扱えるようになります
-            const relativeTime = new Date(946684800000 + (p.time - sessionStartTime)).toISOString();
-            
-            gpx += `
-    <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}">
-      <time>${relativeTime}</time>
-      <speed>${(p.speed / 3.6).toFixed(2)}</speed>
-      <extensions>
-        <gpxtpx:TrackPointExtension>
-          <gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr>
-          <gpxtpx:atemp>${p.temp}</gpxtpx:atemp>
-        </gpxtpx:TrackPointExtension>
-      </extensions>
-    </trkpt>`;
+            const relTime = new Date(946684800000 + (p.time - sessionStartTime)).toISOString();
+            gpx += `<trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}"><time>${relTime}</time><speed>${(p.speed/3.6).toFixed(2)}</speed><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr><gpxtpx:atemp>${p.temp}</gpxtpx:atemp></gpxtpx:TrackPointExtension></extensions></trkpt>`;
         });
         gpx += `\n</trkseg></trk>`;
     });
-
     gpx += `\n</gpx>`;
     
     const blob = new Blob([gpx], { type: 'application/gpx+xml' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `RaceLog_${Date.now()}.gpx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `RaceLog_${Date.now()}.gpx`; a.click();
 }
 
 function timeFormat(ms) {
@@ -362,265 +273,81 @@ function tick() {
     document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
     if (isFrozen) {
         document.getElementById('display1').textContent = freezeDisplayTime;
+        document.getElementById('display1').style.color = "var(--hrc-red)";
         if (now - freezeStartTime > 15000) isFrozen = false;
     } else { 
         document.getElementById('display1').textContent = timeFormat(now - lapStartTime); 
+        document.getElementById('display1').style.color = "var(--hrc-white)";
     }
     document.getElementById('max_speed_val').textContent = maxSpeed;
+    document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
     requestAnimationFrame(tick);
 }
 
-// --- 4. 描画・UI制御 ---
+// --- 6. 描画 (Tacho) ---
 function drawTacho(rpm) {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    canvas.width = w;
-    canvas.height = h;
-    
+    const w = window.innerWidth, h = window.innerHeight;
+    if (canvas.width !== w || canvas.height !== h) handleResize();
     ctx.clearRect(0, 0, w, h);
 
-    // --- 1. 【AQUOS特化：超ダイナミックR計算】 ---
-    // iPhone 8 (375px) は R=85 固定（右端突き抜けを最優先）
-    // AQUOS (412px〜) は R=140以上（画面の広さを活かした優雅な曲線）
-    let rad = 85; 
-    if (w > 375) {
-        // 幅の差分に対して1.8倍の比率でRを拡大。
-        // これによりAQUOSでは「カクッ」ではなく「ふわっ」と大きく回ります。
-        rad = Math.min(160, 85 + (w - 375) * 1.8);
-    }
-
-    const sideMargin = 45;   
-    const topMargin = 60;    // Rが大きくなる分、少しだけ上に余裕を持たせました
-    const footerHeight = h * 0.85; 
-    const barWeight = 48;   
-    const rLimit = w; 
-    const vLimit = topMargin + rad; 
-
-    const vLen = footerHeight - vLimit; 
-    const cLen = (Math.PI * rad) / 2;                 
-    const hLen = rLimit - (sideMargin + rad); 
-    const totalLen = vLen + cLen + hLen;
+    let rad = 85; if (w > 375) rad = Math.min(160, 85 + (w - 375) * 1.8);
+    const sideMargin = 45, topMargin = 60, footerHeight = h * 0.85, barWeight = 48;
+    const vLimit = topMargin + rad, totalLen = (footerHeight - vLimit) + (Math.PI * rad / 2) + (w - (sideMargin + rad));
     const activeLen = (rpm / 14000) * totalLen;
 
-    // パス定義（Stroke専用にすることで内側の塗りつぶしを完全に防止）
-    function createPath(c) {
-        c.beginPath();
-        c.lineCap = "butt";
-        c.lineJoin = "round";
-        c.moveTo(sideMargin, footerHeight);
-        c.lineTo(sideMargin, vLimit);
-        c.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
-        c.lineTo(rLimit, topMargin);
-    }
+    const path = () => {
+        ctx.beginPath(); ctx.moveTo(sideMargin, footerHeight); ctx.lineTo(sideMargin, vLimit);
+        ctx.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5); ctx.lineTo(w, topMargin);
+    };
 
-    // --- 2. 描画（ベース＆カラー） ---
-    ctx.save();
-    createPath(ctx);
-    ctx.strokeStyle = "#222222"; // ベースグレー
-    ctx.lineWidth = barWeight;
-    ctx.stroke();
-    ctx.restore();
-
-    // カラーバー（白・青・赤の順でStroke描画）
-    ctx.save();
-    createPath(ctx);
-    ctx.lineWidth = barWeight;
-    ctx.setLineDash([activeLen, totalLen]);
-    ctx.strokeStyle = "#FFFFFF";
-    ctx.stroke();
-    ctx.restore();
-
-    const blueStart = totalLen * (6000 / 14000);
-    if (activeLen > blueStart) {
-        ctx.save();
-        createPath(ctx);
-        ctx.lineWidth = barWeight + 1;
-        ctx.setLineDash([activeLen - blueStart, totalLen]);
-        ctx.lineDashOffset = -blueStart;
-        ctx.strokeStyle = "#0055FF";
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    const redStart = totalLen * (11000 / 14000);
-    if (activeLen > redStart) {
-        ctx.save();
-        createPath(ctx);
-        ctx.lineWidth = barWeight + 2;
-        ctx.setLineDash([activeLen - redStart, totalLen]);
-        ctx.lineDashOffset = -redStart;
-        ctx.strokeStyle = "#FF0000";
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    // --- 3. 250rpm刻みの高精度セグメント（黒スリット） ---
-    ctx.save();
-    createPath(ctx);
-    ctx.lineWidth = barWeight + 10;
-    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = barWeight; ctx.lineCap = "butt";
+    path(); ctx.strokeStyle = "#222"; ctx.stroke();
+    ctx.setLineDash([activeLen, totalLen]); ctx.strokeStyle = "#FFF"; ctx.stroke();
     
-    // 250rpm目盛り (56分割)
-    const sWidth = 1.8; 
-    const sGap = (totalLen / 56) - sWidth;
-    ctx.setLineDash([sWidth, sGap]);
-    ctx.lineDashOffset = sWidth / 2;
-    ctx.stroke();
-
-    // 1000rpm目盛り (14分割)
-    const mWidth = 4;
-    const mGap = (totalLen / 14) - mWidth;
-    ctx.setLineDash([mWidth, mGap]);
-    ctx.lineDashOffset = mWidth / 2;
-    ctx.stroke();
-    ctx.restore();
-
-    // --- 4. 数値（ラベル） ---
-    ctx.font = "italic 900 24px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#666"; 
-    // Rが大きくなった際、数字がバーに被らないようオフセットを動的に
-    const offset = 45 + (rad - 85) * 0.1; 
-
-    for (let i = 0; i <= 14; i++) {
-        const prog = i / 14;
-        let lx, ly;
-        if (prog < 0.1) {
-            lx = sideMargin - offset;
-            ly = footerHeight - (prog / 0.1) * vLen;
-        } else if (prog < 0.35) {
-            const p = (prog - 0.1) / 0.25;
-            const theta = Math.PI + (p * Math.PI / 2);
-            lx = sideMargin + rad + Math.cos(theta) * (rad + offset);
-            ly = vLimit + Math.sin(theta) * (rad + offset);
-        } else {
-            const p = (prog - 0.35) / 0.65;
-            lx = (sideMargin + rad) + p * (w - 20 - (sideMargin + rad));
-            ly = topMargin - offset;
-        }
-        ctx.fillText(i, Math.max(15, Math.min(w - 15, lx)), ly);
-    }
+    const blueS = totalLen * 6000/14000, redS = totalLen * 11000/14000;
+    if (activeLen > blueS) { ctx.setLineDash([activeLen - blueS, totalLen]); ctx.lineDashOffset = -blueS; ctx.strokeStyle = "#0055FF"; ctx.stroke(); }
+    if (activeLen > redS) { ctx.setLineDash([activeLen - redS, totalLen]); ctx.lineDashOffset = -redS; ctx.strokeStyle = "#FF0000"; ctx.stroke(); }
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
 }
-function updateButtonColors() {
-    const now = Date.now();
-    const gpsBtn = document.getElementById('intGpsBtn');
-    gpsBtn.style.backgroundColor = (lastGpsDataTime !== 0 && (now - lastGpsDataTime < 3000)) ? "var(--hrc-red)" : (watchId ? "var(--hrc-orange)" : "#1a1a1a");
-    document.getElementById('btConnect').style.backgroundColor = (lastBleDataTime !== 0 && (now - lastBleDataTime < 2000)) ? "var(--hrc-red)" : "#1a1a1a";
-    const startBtn = document.getElementById('startBtn');
-    startBtn.style.backgroundColor = (swState === 1) ? "var(--hrc-red)" : "#1a1a1a";
 
-    const reloadBtn = document.getElementById('reloadBtn');
-    if (isDemoMode) {
-        reloadBtn.classList.add('demo-active');
-    } else {
-        reloadBtn.classList.remove('demo-active');
-        const req = ['startLineP1Lat', 'startLineP1Lon', 'startLineP2Lat', 'startLineP2Lon', 'pl1'];
-        const ok = req.every(k => localStorage.getItem(k) && localStorage.getItem(k) !== "0");
-        reloadBtn.style.backgroundColor = ok ? "#1a1a1a" : "var(--hrc-orange)";
-    }
+// --- 7. UIイベント ---
+function handleResize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr; canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-setInterval(updateButtonColors, 1000);
 
 document.getElementById('intGpsBtn').onclick = startInternalGps;
 document.getElementById('btConnect').onclick = ble;
 document.getElementById('saveLogBtn').onclick = exportGPX;
-document.getElementById('startBtn').onclick = () => {
+document.getElementById('startBtn').onclick = function() {
     if(swState !== 1) { 
-        swState = 1; startTime = Date.now(); lapStartTime = startTime; trackLogs = []; currentLapLog = []; maxSpeed = 0;
-        document.getElementById('saveLogBtn').style.display = 'none'; tick(); 
+        swState = 1; startTime = Date.now(); lapStartTime = startTime; lastLapTime = 0;
+        trackLogs = []; currentLapLog = []; maxSpeed = 0; detectedDirection = null; lastPos = null;
+        this.classList.add('active'); document.getElementById('saveLogBtn').style.display = 'none'; tick(); 
     } else { 
-        swState = 2; document.getElementById('saveLogBtn').style.display = 'flex';
+        swState = 2; this.classList.remove('active'); document.getElementById('saveLogBtn').style.display = 'flex';
     }
 };
-// --- 修正箇所3: リセットボタン（lapBtn）への初期化追加 ---
+
 document.getElementById('lapBtn').onclick = () => {
-    if(swState === 1) {
-        processLap(Date.now(), false);
-    } else { 
-        // 完全リセット処理
-        swState = 0; 
-        lapRecords = []; 
-        trackLogs = []; 
-        currentLapLog = []; 
-        maxSpeed = 0;
-        detectedDirection = null; // 💡 方向の記憶をリセット
-        document.getElementById('lap').innerHTML = ""; 
-        document.getElementById('display1').textContent="00:00.000"; 
-        document.getElementById('display').textContent="TOTAL 00:00.000"; 
-        document.getElementById('max_speed_val').textContent = "0";
-        alert("データをリセットしました。次の計測では最初のライン通過方向が正転になります。");
-    }
+    if(swState === 1) processLap(Date.now(), false);
+    else if(confirm("RESET?")) location.reload();
 };
 
-document.getElementById('reloadBtn').onclick = () => {
-    demoClickCount++; setTimeout(() => { demoClickCount = 0; }, 2000);
-    if (demoClickCount >= 5) {
-        isDemoMode = !isDemoMode;
-        if (isDemoMode) {
-            if (swState !== 1) document.getElementById('startBtn').click();
-            demoInterval = setInterval(() => {
-                currentRPM = Math.floor(Math.random() * 4000) + 8000;
-                currentSpeedKmh = Math.floor(Math.random() * 50) + 110;
-                document.getElementById('speed_val').textContent = currentSpeedKmh;
-                if (currentSpeedKmh > maxSpeed) maxSpeed = currentSpeedKmh;
-                if (Date.now() - lastLapTime > 25000) processLap(Date.now(), true);
-            }, 100);
-        } else { clearInterval(demoInterval); currentRPM = 0; }
-    } else { location.reload(); }
-};
-
-// 1. 関数として定義
-// デバイスピクセル比を考慮したリサイズ処理
-// デバイスピクセル比を考慮したリサイズ処理
-function handleResize() {
-    const dpr = window.devicePixelRatio || 1;
-    const displayWidth = window.innerWidth;
-    const displayHeight = window.innerHeight;
-
-    // キャンバスの実解像度をセット（iPhone/AQUOSのボケ・歪み防止）
-    canvas.width = displayWidth * dpr;
-    canvas.height = displayHeight * dpr;
-
-    // 描画コンテキストをスケーリング
-    ctx.setTransform(1, 0, 0, 1, 0, 0); 
-    ctx.scale(dpr, dpr);
-
-    // CSS上の表示サイズを固定
-    canvas.style.width = displayWidth + 'px';
-    canvas.style.height = displayHeight + 'px';
-}
-
-// イベント紐付け
+document.getElementById('reloadBtn').onclick = () => location.reload();
 window.onresize = handleResize;
 
 window.onload = () => { 
-    handleResize(); // 起動時にサイズを確定
-    
-    // localStorageからの読み込み（既存のコードと同じ）
+    handleResize();
     const p1a = localStorage.getItem('startLineP1Lat');
     if (p1a) {
         LAP_LINE_P1 = { lat: parseFloat(p1a), lon: parseFloat(localStorage.getItem('startLineP1Lon')) };
         LAP_LINE_P2 = { lat: parseFloat(localStorage.getItem('startLineP2Lat')), lon: parseFloat(localStorage.getItem('startLineP2Lon')) };
         pulseCount = parseInt(localStorage.getItem('pl1')) || 1;
     }
-    
-    // 描画ループの開始
-    (function r(){ 
-        drawTacho(currentRPM); 
-        requestAnimationFrame(r); 
-    })(); 
+    (function r(){ drawTacho(currentRPM); requestAnimationFrame(r); })(); 
 };
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
