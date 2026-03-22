@@ -125,41 +125,48 @@ function drawTacho(rpm) {
     const w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
     ctx.clearRect(0,0,w,h);
     
-    // セグメント数を増やして（75→90）、右端までの密度を強化
-    const seg = 90;
+    const seg = 85; // セグメント総数
     const active = Math.floor((rpm/14000)*seg);
     
     // --- レイアウト調整パラメータ ---
-    const sX = 20;          // 開始位置（左マージンを詰めました）
-    const topY = 45;        // 直線部の高さ（より上端へ）
-    const startY = h - 30;  // 0rpmの開始高さ（画面下端）
-    const rightMargin = 15; // 右端の余白（15pxまで詰めました）
+    const sX = 20;          // 左マージン
+    const topY = 45;        // 直線部の高さ
+    const startY = h - 30;  // 0rpmの高さ
+    const rightEnd = w - 15; // 右端の到達点
     
-    // 楕円の半径設定
-    const rx = 80;          // 立ち上がりの横幅（きつめの設定）
-    const ry = startY - topY; // 縦の高さ
+    const rx = 80;          // 楕円の横半径
+    const ry = startY - topY; // 楕円の縦半径
     
-    const cE = 20;          // 0〜20セグメントで垂直上昇
+    // 1. 各区間の概算距離を計算して比率を出す
+    const curveLen = (Math.PI * (rx + ry)) / 4; // 1/4楕円の弧の長さ（近似）
+    const lineLen = rightEnd - (sX + rx);      // 直線部の長さ
+    const totalLen = curveLen + lineLen;       // 全体の長さ
+    
+    const curveRatio = curveLen / totalLen;    // 全体に占める曲線の割合
+    const cE = Math.floor(seg * curveRatio);   // 曲線に割り当てるセグメント数
     // ----------------------------
 
     for (let i=0; i<=seg; i++) {
         let x, y, ang;
         
         if(i <= cE) {
-            // --- 1/4楕円 立ち上がり部 ---
+            // --- 1/4楕円部 ---
             const p = i / cE;
             const theta = Math.PI + (p * Math.PI / 2);
             x = sX + rx + Math.cos(theta) * rx;
             y = startY + Math.sin(theta) * ry;
-            ang = theta;
+            
+            // 接線方向の角度計算（楕円の角度をそのまま使うと歪むため調整）
+            // dx = -rx*sin(t), dy = ry*cos(t) -> atan2(dy, dx)
+            const dx = -rx * Math.sin(theta);
+            const dy = ry * Math.cos(theta);
+            ang = Math.atan2(dy, dx);
         } else {
-            // --- 水平直線部 ---
+            // --- 直線部 ---
             const p = (i - cE) / (seg - cE);
-            const lineStartX = sX + rx;
-            // 右端ギリギリ (w - rightMargin) まで計算
-            x = lineStartX + (p * (w - lineStartX - rightMargin));
+            x = (sX + rx) + (p * lineLen);
             y = topY;
-            ang = 1.5 * Math.PI; // 真上向き
+            ang = 0; // 水平（右向き）
         }
 
         // バーの描画
@@ -167,35 +174,38 @@ function drawTacho(rpm) {
             let color = "#222";
             if(i < active) {
                 const curR = (i/seg)*14000;
-                if(curR >= 12500) color = "#E4002B";      // HRC RED
-                else if(curR >= 8000) color = "#004098";  // HRC BLUE
-                else color = "#FFFFFF";                   // WHITE
+                if(curR >= 12500) color = "#E4002B";
+                else if(curR >= 8000) color = "#004098";
+                else color = "#FFFFFF";
             }
+            
             ctx.fillStyle = color;
             ctx.save();
             ctx.translate(x, y);
-            ctx.rotate(ang + Math.PI / 2);
-            // 直線部ではバーを少し長めにして迫力を出す
-            const barLen = (i > cE) ? 38 : 34;
-            ctx.fillRect(-4, -barLen/2, 8, barLen);
+            
+            // angは「進む方向」なので、バーを立てるために +90度(PI/2) 回転
+            ctx.rotate(ang - Math.PI / 2); 
+            
+            // 密度が揃ったので、すべてのバーを同じサイズ(幅8, 高さ36)で描画
+            ctx.fillRect(-4, -18, 8, 36);
             ctx.restore();
         }
 
-        // スケール数字（10刻みだと重なるので調整）
+        // スケール数字
         if(i % 12 === 0 || i === seg) {
             ctx.save();
             ctx.translate(x, y);
             ctx.font = "italic bold 16px Arial";
             ctx.fillStyle = "#888";
             ctx.textAlign = "center";
-            // 角度に合わせて文字のオフセットを計算
-            const dist = 35;
-            ctx.fillText(Math.round(i/seg*14), Math.cos(ang)*dist, Math.sin(ang)*dist);
+            // バーの向き(ang)に対して垂直外側に配置
+            const labelDist = 38;
+            ctx.fillText(Math.round(i/seg*14), Math.sin(ang)*labelDist, -Math.cos(ang)*labelDist);
             ctx.restore();
         }
     }
 
-    // 数値更新（描画と完全同期）
+    // 数値更新
     document.getElementById('rpm_val').textContent = Math.floor(rpm);
     document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
     document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
