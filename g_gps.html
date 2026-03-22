@@ -305,7 +305,30 @@ document.getElementById('historyBtn').onclick = () => {
 };
 document.getElementById('historyCloseBtn').onclick=()=>{document.getElementById('history-page').style.display='none';};
 
-window.onload = () => { tick(); };
+window.onload = () => { 
+    updateStatusColors(); // ボタンの色をチェック
+    tick(); 
+};
+    // ストレージの入力状況を確認してRELOADボタンの色を変える関数
+function updateStatusColors() {
+    const reloadBtn = document.getElementById('reloadBtn');
+    
+    // localStorageから座標（必須項目）を取得
+    const lat = localStorage.getItem('startLineLat');
+    const lng = localStorage.getItem('startLineLng');
+    
+    // 緯度(Lat)または経度(Lng)が空、もしくは存在しない場合にオレンジ色にする
+    // ※サーキット名やパルスは空でも無視されます
+    const isMissingCoords = (!lat || lat.trim() === "" || !lng || lng.trim() === "");
+
+    if (isMissingCoords) {
+        // 【警告】座標未設定：オレンジ（CSSの .btn-orange クラスを適用）
+        reloadBtn.classList.add('btn-orange');
+    } else {
+        // 【通常】座標設定済み：クラスを外してデフォルト（黒）に戻す
+        reloadBtn.classList.remove('btn-orange');
+    }
+}
 </script>
 </body>
 </html>
