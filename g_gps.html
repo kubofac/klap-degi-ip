@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KLAP DEGI V10.6.1 - PRO</title>
+    <title>KLAP DEGI V10.6.1 - PRO FULL FIX</title>
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --hrc-orange: #FFA500; }
     body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
@@ -11,18 +11,19 @@
     /* 背面：タコメーター描画用 */
     #canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; pointer-events: none; }
 
-    /* 中間：タイム表示（ボタンの邪魔をしないよう pointer-events: none） */
+    /* 中間：メインUI（ボタンを邪魔しないよう pointer-events: none） */
     .main-ui-container { position: absolute; left: 0; top: 0; width: 100vw; height: calc(100vh - 60px); z-index: 5; pointer-events: none; }
     
     #info-overlay { 
         position: absolute; right: 280px; top: 50%; transform: translateY(-50%);
         display: flex; flex-direction: column; align-items: flex-end; text-align: right; 
     }
-    #rpm_val { font-size: 13vh; font-weight: 900; line-height: 1.0; color: var(--hrc-white); text-shadow: 2px 2px 10px #000;margin-bottom: 2vh; /* ★ここに隙間を追加（数値はお好みで調整してください） */ }
+    /* 回転数とタイムの間隔を確保 (V5.1 Pro) */
+    #rpm_val { font-size: 13vh; font-weight: 900; line-height: 1.0; color: var(--hrc-white); text-shadow: 2px 2px 10px #000; margin-bottom: 4vh; }
     #display1 { font-size: 17vh; font-weight: 900; line-height: 0.8; text-shadow: 4px 4px 15px #000; white-space: nowrap; }
     #display { font-size: 3vh; color: #888; margin-top: 5px; }
 
-    /* 右側パネル：ラップリストはスクロールのため auto */
+    /* 右側パネル：ラップリストはスクロールを有効にする */
     .right-panels { position: absolute; right: 15px; top: 80px; bottom: 10px; display: flex; gap: 20px; pointer-events: none; }
     #lap-panel { width: 140px; display: flex; flex-direction: column; overflow: hidden; pointer-events: auto; }
     #lap { flex: 1; overflow-y: auto; scrollbar-width: none; }
@@ -41,10 +42,10 @@
     #history-table td { padding: 10px; border-bottom: 1px solid #333; text-align: center; font-size: 16px; font-weight: bold; }
     .close-btn { background: var(--hrc-red); color: #fff; padding: 15px; text-align: center; font-weight: bold; border-radius: 6px; cursor: pointer; }
 
-    /* 前面：操作フッター（確実にクリックを拾うため z-index を高く設定） */
-    footer { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; display: flex; gap: 4px; padding: 5px; background: #000; z-index: 1000; border-top: 1px solid #333; }
+    /* 前面：操作フッター（z-index 1000で確実に前面へ） */
+    footer { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; display: flex; gap: 4px; padding: 5px; background: #000; z-index: 1000; border-top: 1px solid #333; padding-bottom: env(safe-area-inset-bottom); }
     button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .btn-red { background-color: var(--hrc-red) !important; }
+    .btn-red { background-color: var(--hrc-red) !important; border-color: #fff; }
     .btn-orange { background-color: var(--hrc-orange) !important; color: #000; }
 
     @media screen and (max-width: 667px) { #info-overlay { right: 260px; } }
@@ -132,21 +133,37 @@ function drawTacho(rpm) {
     }
 }
 
-// --- プロ仕様 processLap ---
+// --- プロ仕様 processLap（手動即時・プロ仕様表示） ---
 function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-    if (isManual) { if (lapT < 100) return; } else { if (lapT < 2000) return; }
+    
+    // ガードロジック
+    if (isManual) { if (lapT < 100) return; } 
+    else { if (lapT < 2000) return; }
 
+    // 最大値更新
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
 
-    lapRecords.unshift({ no: lapRecords.length + 1, time: lapT, max: Math.round(maxSpeedInLap), maxRpm: Math.round(maxRpmInLap), type: isManual ? "M" : "A" });
+    // 内部記録
+    lapRecords.unshift({ 
+        no: lapRecords.length + 1, 
+        time: lapT, 
+        max: Math.round(maxSpeedInLap), 
+        maxRpm: Math.round(maxRpmInLap), 
+        type: isManual ? "M" : "A" 
+    });
     
+    // プロ仕様表示（L + タイムのみ）
     const best = Math.min(...lapRecords.map(r => r.time));
-    document.getElementById('lap').innerHTML = lapRecords.map(r => `<div class="lap-row ${r.time===best?'best-lap':''}"><span>L${r.no}</span><span>${timeFormat(r.time)}</span></div>`).join('');
+    document.getElementById('lap').innerHTML = lapRecords.map(r => `
+        <div class="lap-row ${r.time===best?'best-lap':''}">
+            <span>L${r.no}</span><span>${timeFormat(r.time)}</span>
+        </div>`).join('');
     
     lapStartTime = hitTime; lastLapTime = hitTime; maxSpeedInLap = 0; maxRpmInLap = 0;
 
+    // フリーズ制御
     if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
     else { isFrozen = false; }
 }
@@ -175,10 +192,66 @@ function tick() {
         }
     }
     document.getElementById('startBtn').className = (swState === 1) ? "btn-red" : "";
+    
+    // GPSボタンの状態表示
+    if (watchId && now - lastGpsDataTime < 2000) document.getElementById('intGpsBtn').className = "btn-red";
+    else if (watchId) document.getElementById('intGpsBtn').className = "btn-orange";
+
     requestAnimationFrame(tick);
 }
 
-// --- イベントリスナーを確実に登録 ---
+// --- イベント登録 ---
+
+// 1. INT GPS ボタン (確実な登録)
+document.getElementById('intGpsBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        document.getElementById('intGpsBtn').className = "";
+        return;
+    }
+    document.getElementById('intGpsBtn').className = "btn-orange";
+    watchId = navigator.geolocation.watchPosition(pos => {
+        lastGpsDataTime = Date.now();
+        currentSpeedKmh = pos.coords.speed ? pos.coords.speed * 3.6 : 0;
+        // GPSライン通過判定（別途設定済みと想定）
+        if (typeof handlePositionUpdate === "function") {
+            handlePositionUpdate(pos.coords.latitude, pos.coords.longitude, Date.now());
+        }
+    }, err => {
+        console.error(err);
+        alert("GPS Error: HTTPS接続と位置情報の許可を確認してください。");
+        watchId = null;
+        document.getElementById('intGpsBtn').className = "";
+    }, { enableHighAccuracy: true, maximumAge: 0 });
+});
+
+// 2. BLE START (ESP32パケット[3]対応)
+document.getElementById('btConnect').onclick = async () => {
+    try {
+        const device = await navigator.bluetooth.requestDevice({ filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }] });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+        const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
+
+        char.addEventListener('characteristicvaluechanged', (e) => {
+            lastBleDataTime = Date.now();
+            const d = e.target.value;
+            if (d.byteLength >= 3) {
+                const hz = d.getUint16(0, true); 
+                currentRPM = (hz * 60) / pulseCount;
+                currentTemp = d.getUint8(2);
+                document.getElementById('temp_val').textContent = currentTemp;
+                if (currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
+                document.getElementById('btConnect').className = "btn-red";
+            }
+        });
+        await char.startNotifications();
+    } catch (e) { console.error(e); }
+};
+
+// 3. HISTORY ボタン
 document.getElementById('historyBtn').addEventListener('click', () => {
     if (lapRecords.length === 0) return;
     const best = Math.min(...lapRecords.map(r => r.time));
@@ -193,48 +266,11 @@ document.getElementById('historyBtn').addEventListener('click', () => {
 
 document.getElementById('historyCloseBtn').onclick = () => { document.getElementById('history-page').style.display = 'none'; };
 
+// 4. その他ボタン
 document.getElementById('lapBtn').onclick = (e) => { e.preventDefault(); if(swState===1) processLap(Date.now(), false, true); };
-
 document.getElementById('startBtn').onclick = () => {
-    if (swState !== 1) { swState = 1; startTime = Date.now(); lapStartTime = 0; lapRecords = []; sessionMaxSpeed=0; }
+    if (swState !== 1) { swState = 1; startTime = Date.now(); lapStartTime = 0; lapRecords = []; sessionMaxSpeed=0; sessionMaxRPM=0; }
     else { swState = 2; }
-};
-
-document.getElementById('btConnect').onclick = async () => {
-    try {
-        const device = await navigator.bluetooth.requestDevice({ 
-            filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }] 
-        });
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-        const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
-
-        char.addEventListener('characteristicvaluechanged', (e) => {
-            lastBleDataTime = Date.now();
-            const d = e.target.value;
-
-            // ESP32の packet[3] に合わせて修正
-            if (d.byteLength >= 3) {
-                // 1. 周波数(Hz)の取得: packet[0]とpacket[1]から16bit整数を作成
-                // リトルエンディアン(true)で読み取り
-                const hz = d.getUint16(0, true); 
-                
-                // 2. 回転数(RPM)への計算: V5.1準拠 (Hz * 60 / パルス設定)
-                currentRPM = (hz * 60) / pulseCount;
-
-                // 3. 温度の取得: packet[2]から取得
-                currentTemp = d.getUint8(2);
-                document.getElementById('temp_val').textContent = currentTemp;
-                
-                // 最高回転数の更新用
-                if (currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
-                if (currentRPM > sessionMaxRPM) sessionMaxRPM = currentRPM;
-            }
-        });
-        await char.startNotifications();
-    } catch (e) { 
-        console.error("BLE Error:", e); 
-    }
 };
 
 window.onload = () => { tick(); };
