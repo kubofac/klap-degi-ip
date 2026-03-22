@@ -73,14 +73,15 @@ let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, wa
 let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0, pulseCount = 1;
 
 // 保存された座標があれば読み込み、なければデフォルト値
+// --- 修正後：設定ツールの保存名に合わせる ---
 let slLine = { 
     p1: {
-        lat: parseFloat(localStorage.getItem('startLineLat')) || 34.825, 
-        lng: parseFloat(localStorage.getItem('startLineLng')) || 137.452
+        lat: parseFloat(localStorage.getItem('startLineP1Lat')) || 34.825, 
+        lng: parseFloat(localStorage.getItem('startLineP1Lon')) || 137.452
     }, 
     p2: {
-        lat: parseFloat(localStorage.getItem('startLineLat2')) || 34.826, 
-        lng: parseFloat(localStorage.getItem('startLineLng2')) || 137.453
+        lat: parseFloat(localStorage.getItem('startLineP2Lat')) || 34.826, 
+        lng: parseFloat(localStorage.getItem('startLineP2Lon')) || 137.453
     } 
 };
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
@@ -325,26 +326,23 @@ function updateStatusColors() {
     const btn = document.getElementById('reloadBtn');
     if (!btn) return;
 
-    // 1. リロード動作の登録（ここで確実に反応するようにします）
     btn.onclick = () => {
         if (confirm("セッションをリセットして再読み込みしますか？")) {
             location.reload();
         }
     };
 
-    // 2. 必須座標の入力チェック
-    const lat = localStorage.getItem('startLineLat');
-    const lng = localStorage.getItem('startLineLng');
+    // 【ここを修正】設定ツールが保存する名前に変更
+    const lat = localStorage.getItem('startLineP1Lat'); 
+    const lng = localStorage.getItem('startLineP1Lon');
     
-    // 座標が空（null、空文字、スペースのみ）ならオレンジ
+    // どちらかが空ならオレンジ（警告）、両方あれば黒
     const isMissing = (!lat || lat.trim() === "" || !lng || lng.trim() === "");
 
     if (isMissing) {
-        // 警告状態：オレンジ
         btn.style.backgroundColor = "var(--hrc-orange)";
         btn.style.color = "#000";
     } else {
-        // 正常状態：黒
         btn.style.backgroundColor = "#1a1a1a";
         btn.style.color = "#fff";
     }
