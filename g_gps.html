@@ -30,7 +30,7 @@
     footer { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; display: flex; gap: 4px; padding: 5px; background: #000; z-index: 1000; border-top: 1px solid #333; padding-bottom: env(safe-area-inset-bottom); }
     button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .btn-red { background-color: var(--hrc-red) !important; }
-    .btn-orange { background-color: var(--hrc-orange) !important; color: #000; }
+    .btn-orange { background-color: var(--hrc-orange) !important; color: #000 !important; }
     @media screen and (max-width: 667px) { #info-overlay { right: 260px; } }
 </style>
 </head>
@@ -61,6 +61,7 @@
     <button id="startBtn">TIMER</button>
     <button id="lapBtn">LAP/RESET</button>
     <button id="historyBtn">HISTORY</button>
+    <button id="gpxBtn" style="display:none;" class="btn-orange">GPX SAVE</button>
     <button id="reloadBtn" onclick="location.reload()">RELOAD</button>
 </footer>
 
@@ -69,24 +70,20 @@
 let currentRPM = 0, currentTemp = 0, currentSpeedKmh = 0, maxSpeedInLap = 0, maxRpmInLap = 0;
 let sessionMaxSpeed = 0, sessionMaxRPM = 0, swState = 0, startTime = 0, lapStartTime = 0;
 let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, watchId = null;
-let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0, lastGpsTime = 0, pulseCount = 1;
+let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0, pulseCount = 1;
 
-// 仮想フィニッシュライン座標（本来は設定画面から保存）
+// 仮想フィニッシュライン座標
 let slLine = { p1: {lat: 34.825, lng: 137.452}, p2: {lat: 34.826, lng: 137.453} };
 
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
-// --- 1. ベクトル交差判定 & ミリ秒予測 (V5.1 Pro的核心) ---
 function checkLineCross(p1, p2, line) {
     const cross = (a, b, c) => (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
     const s1 = cross(line.p1, line.p2, p1);
     const s2 = cross(line.p1, line.p2, p2);
-
     if (s1 * s2 < 0) {
         const fraction = Math.abs(s1) / (Math.abs(s1) + Math.abs(s2));
         const estimatedTime = p1.t + (p2.t - p1.t) * fraction;
-        
-        // 方向学習ロジック（逆走防止）
         const heading = Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat);
         if (learnedHeading === null) { learnedHeading = heading; return estimatedTime; }
         if (Math.abs(heading - learnedHeading) < Math.PI / 4) return estimatedTime;
@@ -94,9 +91,8 @@ function checkLineCross(p1, p2, line) {
     return null;
 }
 
-// --- 2. GPX V1.1 出力ロジック ---
 function exportGPX() {
-    if (trackPoints.length === 0) return;
+    if (trackPoints.length === 0) { alert("NO DATA"); return; }
     let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP DEGI" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>`;
     trackPoints.forEach(p => {
         xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${new Date(p.t).toISOString()}</time><extensions><speed>${p.spd}</speed><rpm>${p.rpm}</rpm></extensions></trkpt>`;
@@ -104,18 +100,17 @@ function exportGPX() {
     xml += `</trkseg></trk></gpx>`;
     const blob = new Blob([xml], {type: 'application/gpx+xml'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `V1061_${new Date().getTime()}.gpx`; a.click();
+    a.download = `RaceLog_${new Date().getTime()}.gpx`; a.click();
 }
 
 function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-    if (isManual ? lapT < 100 : lapT < 15000) return; // 15s cooldown
+    if (!isManual && lapT < 15000) return; 
 
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
 
     lapRecords.unshift({ no: lapRecords.length + 1, time: lapT, max: Math.round(maxSpeedInLap), maxRpm: Math.round(maxRpmInLap) });
-    
     const best = Math.min(...lapRecords.map(r => r.time));
     document.getElementById('lap').innerHTML = lapRecords.map(r => `<div class="lap-row ${r.time===best?'best-lap':''}"><span>L${r.no}</span><span>${timeFormat(r.time)}</span></div>`).join('');
     
@@ -137,28 +132,35 @@ function drawTacho(rpm) {
         if(i<=cE){ p=i/cE; ang=Math.PI+(p*(Math.PI/2)); x=sX+rad+Math.cos(ang)*rad; y=bY+Math.sin(ang)*rad; }
         else { p=(i-cE)/(seg-cE); x=(sX+rad)+(p*(w-(sX+rad)-50)); y=hY; ang=1.5*Math.PI; }
         if(i<seg){
-            ctx.fillStyle = (i<active)?((i/seg*14000)>=12500?"var(--hrc-red)":(i/seg*14000>=8000?"var(--hrc-blue)":"#fff")):"#222";
+            let color = "#222";
+            if(i < active) {
+                const curR = (i/seg)*14000;
+                if(curR >= 12500) color = "#E4002B";
+                else if(curR >= 8000) color = "#004098";
+                else color = "#FFFFFF";
+            }
+            ctx.fillStyle = color;
             ctx.save(); ctx.translate(x,y); ctx.rotate(ang+Math.PI/2); ctx.fillRect(-4,-15,8,30); ctx.restore();
         }
-        if(i%(seg/7)===0||i===seg){
+        if(i%(Math.floor(seg/7))===0||i===seg){
             ctx.save(); ctx.translate(x,y); ctx.font="bold 15px Arial"; ctx.fillStyle="#888"; ctx.textAlign="center";
             ctx.fillText(Math.round(i/seg*14), Math.cos(ang)*28, Math.sin(ang)*28); ctx.restore();
         }
     }
+    // 数値更新
+    document.getElementById('rpm_val').textContent = Math.floor(rpm);
+    document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
+    document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
 }
 
 function tick() {
     const now = Date.now();
     drawTacho(currentRPM);
-    document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
-    document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
-    document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
-
     if (swState === 1) {
         document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
         if (isFrozen && now < freezeUntil) {
             document.getElementById('display1').textContent = freezeDisplayTime;
-            document.getElementById('display1').style.color = "var(--hrc-red)";
+            document.getElementById('display1').style.color = "#E4002B";
         } else {
             isFrozen = false;
             document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime));
@@ -168,12 +170,10 @@ function tick() {
     requestAnimationFrame(tick);
 }
 
-// --- イベント登録 ---
 document.getElementById('intGpsBtn').onclick = () => {
     if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; document.getElementById('intGpsBtn').className=""; return; }
     document.getElementById('intGpsBtn').className="btn-orange";
     watchId = navigator.geolocation.watchPosition(pos => {
-        lastGpsTime = Date.now();
         currentSpeedKmh = (pos.coords.speed || 0) * 3.6;
         if(currentSpeedKmh > maxSpeedInLap) maxSpeedInLap = currentSpeedKmh;
         const newP = {lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), spd: currentSpeedKmh, rpm: currentRPM};
@@ -207,12 +207,24 @@ document.getElementById('btConnect').onclick = async () => {
 };
 
 document.getElementById('startBtn').onclick = () => {
-    if(swState!==1){ swState=1; startTime=Date.now(); lapStartTime=0; lapRecords=[]; trackPoints=[]; learnedHeading=null; }
-    else { swState=2; exportGPX(); }
+    if(swState!==1){
+        swState=1; startTime=Date.now(); lapStartTime=0; lapRecords=[]; trackPoints=[]; learnedHeading=null;
+        document.getElementById('gpxBtn').style.display = 'none';
+    } else {
+        swState=2;
+        document.getElementById('gpxBtn').style.display = 'block';
+    }
     document.getElementById('startBtn').className = (swState===1)?"btn-red":"";
 };
 
-document.getElementById('lapBtn').onclick = (e) => { e.preventDefault(); if(swState===1) processLap(Date.now(), false, true); };
+document.getElementById('gpxBtn').onclick = exportGPX;
+
+document.getElementById('lapBtn').onclick = (e) => { 
+    e.preventDefault(); 
+    if(swState===1) processLap(Date.now(), false, true); 
+    else if(confirm("RESET SESSION?")) location.reload(); // 停止中にリセット
+};
+
 document.getElementById('historyBtn').onclick = () => {
     const best = Math.min(...lapRecords.map(r=>r.time));
     document.getElementById('history-body').innerHTML = lapRecords.map(r=>`<tr style="${r.time===best?'background:rgba(228,0,43,0.1);':''}"><td>${r.no}</td><td style="${r.time===best?'color:var(--hrc-red);':''}">${timeFormat(r.time)}</td><td>${r.max}</td><td>${r.maxRpm}</td></tr>`).join('');
