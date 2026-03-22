@@ -3,58 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KLAP DEGI V10.6.1 - PRO FULL FIX</title>
+    <title>KLAP DEGI V10.6.1 - PRO FULL</title>
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --hrc-orange: #FFA500; }
     body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
-    
-    /* 背面：タコメーター描画用 */
     #canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; pointer-events: none; }
-
-    /* 中間：メインUI（ボタンを邪魔しないよう pointer-events: none） */
     .main-ui-container { position: absolute; left: 0; top: 0; width: 100vw; height: calc(100vh - 60px); z-index: 5; pointer-events: none; }
-    
-    #info-overlay { 
-        position: absolute; right: 280px; top: 50%; transform: translateY(-50%);
-        display: flex; flex-direction: column; align-items: flex-end; text-align: right; 
-    }
-    /* 回転数とタイムの間隔を確保 (V5.1 Pro) */
+    #info-overlay { position: absolute; right: 280px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
     #rpm_val { font-size: 13vh; font-weight: 900; line-height: 1.0; color: var(--hrc-white); text-shadow: 2px 2px 10px #000; margin-bottom: 4vh; }
     #display1 { font-size: 17vh; font-weight: 900; line-height: 0.8; text-shadow: 4px 4px 15px #000; white-space: nowrap; }
     #display { font-size: 3vh; color: #888; margin-top: 5px; }
-
-    /* 右側パネル：ラップリストはスクロールを有効にする */
     .right-panels { position: absolute; right: 15px; top: 80px; bottom: 10px; display: flex; gap: 20px; pointer-events: none; }
     #lap-panel { width: 140px; display: flex; flex-direction: column; overflow: hidden; pointer-events: auto; }
     #lap { flex: 1; overflow-y: auto; scrollbar-width: none; }
     .lap-row { display: flex; justify-content: flex-end; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 15px; font-weight: 900; }
     .best-lap { color: var(--hrc-red) !important; }
-
     .data-panel { display: flex; flex-direction: column; gap: 15px; width: 90px; }
     .data-box { display: flex; flex-direction: column; align-items: flex-end; }
     .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
     .val { font-size: 38px; font-weight: 900; line-height: 0.9; }
-
-    /* 履歴ページ：最前面 */
     #history-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 2000; padding: 20px; box-sizing: border-box; }
     #history-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     #history-table th { color: var(--hrc-red); border-bottom: 2px solid var(--hrc-red); padding: 10px; font-size: 12px; }
     #history-table td { padding: 10px; border-bottom: 1px solid #333; text-align: center; font-size: 16px; font-weight: bold; }
     .close-btn { background: var(--hrc-red); color: #fff; padding: 15px; text-align: center; font-weight: bold; border-radius: 6px; cursor: pointer; }
-
-    /* 前面：操作フッター（z-index 1000で確実に前面へ） */
     footer { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; display: flex; gap: 4px; padding: 5px; background: #000; z-index: 1000; border-top: 1px solid #333; padding-bottom: env(safe-area-inset-bottom); }
     button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .btn-red { background-color: var(--hrc-red) !important; border-color: #fff; }
+    .btn-red { background-color: var(--hrc-red) !important; }
     .btn-orange { background-color: var(--hrc-orange) !important; color: #000; }
-
     @media screen and (max-width: 667px) { #info-overlay { right: 260px; } }
 </style>
 </head>
 <body>
-
 <canvas id="canvas"></canvas>
-
 <div class="main-ui-container">
     <div id="info-overlay">
         <div id="rpm_val">0</div>
@@ -70,17 +51,10 @@
         </div>
     </div>
 </div>
-
 <div id="history-page">
     <div class="close-btn" id="historyCloseBtn">CLOSE HISTORY</div>
-    <div style="overflow-y: auto; height: calc(100% - 60px);">
-        <table id="history-table">
-            <thead><tr><th>LAP</th><th>TIME</th><th>MAX SPD</th><th>MAX RPM</th></tr></thead>
-            <tbody id="history-body"></tbody>
-        </table>
-    </div>
+    <div style="overflow-y: auto; height: calc(100% - 60px);"><table id="history-table"><thead><tr><th>LAP</th><th>TIME</th><th>MAX SPD</th><th>MAX RPM</th></tr></thead><tbody id="history-body"></tbody></table></div>
 </div>
-
 <footer>
     <button id="intGpsBtn">INT GPS</button>
     <button id="btConnect">BLE START</button>
@@ -93,84 +67,84 @@
 <script>
 'use strict';
 let currentRPM = 0, currentTemp = 0, currentSpeedKmh = 0, maxSpeedInLap = 0, maxRpmInLap = 0;
-let sessionMaxSpeed = 0, sessionMaxRPM = 0;
-let lastPos = null, lastLapTime = 0, pulseCount = 1, cooldownMs = 15000;
-let swState = 0, startTime = 0, lapStartTime = 0, lapRecords = [];
-let lastGpsDataTime = 0, lastBleDataTime = 0, watchId = null;
-let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0;
+let sessionMaxSpeed = 0, sessionMaxRPM = 0, swState = 0, startTime = 0, lapStartTime = 0;
+let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, watchId = null;
+let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0, lastGpsTime = 0, pulseCount = 1;
+
+// 仮想フィニッシュライン座標（本来は設定画面から保存）
+let slLine = { p1: {lat: 34.825, lng: 137.452}, p2: {lat: 34.826, lng: 137.453} };
 
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
-// --- タコメーター描画（V5.1 Pro：セグメント + 数字） ---
-function drawTacho(rpm) {
-    const w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
-    ctx.clearRect(0, 0, w, h);
-    const segments = 75, activeIdx = Math.floor((rpm / 14000) * segments);
-    const sX = 30, hY = 50, bY = h - 25, rad = bY - hY, curveEnd = 30;
+// --- 1. ベクトル交差判定 & ミリ秒予測 (V5.1 Pro的核心) ---
+function checkLineCross(p1, p2, line) {
+    const cross = (a, b, c) => (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
+    const s1 = cross(line.p1, line.p2, p1);
+    const s2 = cross(line.p1, line.p2, p2);
 
-    for (let i = 0; i <= segments; i++) {
-        let x, y, ang, prog;
-        if (i <= curveEnd) {
-            prog = i / curveEnd; ang = Math.PI + (prog * (Math.PI / 2));
-            x = sX + rad + Math.cos(ang) * rad; y = bY + Math.sin(ang) * rad;
-        } else {
-            prog = (i - curveEnd) / (segments - curveEnd);
-            x = (sX + rad) + (prog * (w - (sX + rad) - 50)); y = hY; ang = 1.5 * Math.PI;
-        }
-        if (i < segments) {
-            const curRpm = (i / segments) * 14000;
-            ctx.fillStyle = (i < activeIdx) ? (curRpm >= 12500 ? "var(--hrc-red)" : (curRpm >= 8000 ? "var(--hrc-blue)" : "#fff")) : "#222";
-            ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI/2);
-            ctx.fillRect(-Math.max(4, w*0.012)/2, -Math.max(25, h*0.12)/2, Math.max(4, w*0.012), Math.max(25, h*0.12)); ctx.restore();
-        }
-        if (i % (segments / 7) === 0 || i === segments) {
-            const labelRpm = Math.round((i / segments) * 14);
-            ctx.save(); ctx.translate(x, y);
-            ctx.font = "bold 15px Arial"; ctx.fillStyle = labelRpm >= 12 ? "var(--hrc-red)" : (labelRpm >= 8 ? "var(--hrc-blue)" : "#888");
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(labelRpm, Math.cos(ang)*28, Math.sin(ang)*28); ctx.restore();
-        }
+    if (s1 * s2 < 0) {
+        const fraction = Math.abs(s1) / (Math.abs(s1) + Math.abs(s2));
+        const estimatedTime = p1.t + (p2.t - p1.t) * fraction;
+        
+        // 方向学習ロジック（逆走防止）
+        const heading = Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat);
+        if (learnedHeading === null) { learnedHeading = heading; return estimatedTime; }
+        if (Math.abs(heading - learnedHeading) < Math.PI / 4) return estimatedTime;
     }
+    return null;
 }
 
-// --- プロ仕様 processLap（手動即時・プロ仕様表示） ---
+// --- 2. GPX V1.1 出力ロジック ---
+function exportGPX() {
+    if (trackPoints.length === 0) return;
+    let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP DEGI" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>`;
+    trackPoints.forEach(p => {
+        xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${new Date(p.t).toISOString()}</time><extensions><speed>${p.spd}</speed><rpm>${p.rpm}</rpm></extensions></trkpt>`;
+    });
+    xml += `</trkseg></trk></gpx>`;
+    const blob = new Blob([xml], {type: 'application/gpx+xml'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `V1061_${new Date().getTime()}.gpx`; a.click();
+}
+
 function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-    
-    // ガードロジック
-    if (isManual) { if (lapT < 100) return; } 
-    else { if (lapT < 2000) return; }
+    if (isManual ? lapT < 100 : lapT < 15000) return; // 15s cooldown
 
-    // 最大値更新
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
 
-    // 内部記録
-    lapRecords.unshift({ 
-        no: lapRecords.length + 1, 
-        time: lapT, 
-        max: Math.round(maxSpeedInLap), 
-        maxRpm: Math.round(maxRpmInLap), 
-        type: isManual ? "M" : "A" 
-    });
+    lapRecords.unshift({ no: lapRecords.length + 1, time: lapT, max: Math.round(maxSpeedInLap), maxRpm: Math.round(maxRpmInLap) });
     
-    // プロ仕様表示（L + タイムのみ）
     const best = Math.min(...lapRecords.map(r => r.time));
-    document.getElementById('lap').innerHTML = lapRecords.map(r => `
-        <div class="lap-row ${r.time===best?'best-lap':''}">
-            <span>L${r.no}</span><span>${timeFormat(r.time)}</span>
-        </div>`).join('');
+    document.getElementById('lap').innerHTML = lapRecords.map(r => `<div class="lap-row ${r.time===best?'best-lap':''}"><span>L${r.no}</span><span>${timeFormat(r.time)}</span></div>`).join('');
     
-    lapStartTime = hitTime; lastLapTime = hitTime; maxSpeedInLap = 0; maxRpmInLap = 0;
-
-    // フリーズ制御
+    lapStartTime = hitTime; maxSpeedInLap = 0; maxRpmInLap = 0;
     if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
-    else { isFrozen = false; }
 }
 
 function timeFormat(ms) {
     const m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), mss = Math.floor(ms%1000);
     return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${mss.toString().padStart(3,'0')}`;
+}
+
+function drawTacho(rpm) {
+    const w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
+    ctx.clearRect(0,0,w,h);
+    const seg = 75, active = Math.floor((rpm/14000)*seg), sX=30, hY=50, bY=h-25, rad=bY-hY, cE=30;
+    for (let i=0; i<=seg; i++) {
+        let x,y,ang,p;
+        if(i<=cE){ p=i/cE; ang=Math.PI+(p*(Math.PI/2)); x=sX+rad+Math.cos(ang)*rad; y=bY+Math.sin(ang)*rad; }
+        else { p=(i-cE)/(seg-cE); x=(sX+rad)+(p*(w-(sX+rad)-50)); y=hY; ang=1.5*Math.PI; }
+        if(i<seg){
+            ctx.fillStyle = (i<active)?((i/seg*14000)>=12500?"var(--hrc-red)":(i/seg*14000>=8000?"var(--hrc-blue)":"#fff")):"#222";
+            ctx.save(); ctx.translate(x,y); ctx.rotate(ang+Math.PI/2); ctx.fillRect(-4,-15,8,30); ctx.restore();
+        }
+        if(i%(seg/7)===0||i===seg){
+            ctx.save(); ctx.translate(x,y); ctx.font="bold 15px Arial"; ctx.fillStyle="#888"; ctx.textAlign="center";
+            ctx.fillText(Math.round(i/seg*14), Math.cos(ang)*28, Math.sin(ang)*28); ctx.restore();
+        }
+    }
 }
 
 function tick() {
@@ -191,87 +165,60 @@ function tick() {
             document.getElementById('display1').style.color = "#fff";
         }
     }
-    document.getElementById('startBtn').className = (swState === 1) ? "btn-red" : "";
-    
-    // GPSボタンの状態表示
-    if (watchId && now - lastGpsDataTime < 2000) document.getElementById('intGpsBtn').className = "btn-red";
-    else if (watchId) document.getElementById('intGpsBtn').className = "btn-orange";
-
     requestAnimationFrame(tick);
 }
 
 // --- イベント登録 ---
-
-// 1. INT GPS ボタン (確実な登録)
-document.getElementById('intGpsBtn').addEventListener('click', (e) => {
-    e.preventDefault();
-    if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        document.getElementById('intGpsBtn').className = "";
-        return;
-    }
-    document.getElementById('intGpsBtn').className = "btn-orange";
+document.getElementById('intGpsBtn').onclick = () => {
+    if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; document.getElementById('intGpsBtn').className=""; return; }
+    document.getElementById('intGpsBtn').className="btn-orange";
     watchId = navigator.geolocation.watchPosition(pos => {
-        lastGpsDataTime = Date.now();
-        currentSpeedKmh = pos.coords.speed ? pos.coords.speed * 3.6 : 0;
-        // GPSライン通過判定（別途設定済みと想定）
-        if (typeof handlePositionUpdate === "function") {
-            handlePositionUpdate(pos.coords.latitude, pos.coords.longitude, Date.now());
-        }
-    }, err => {
-        console.error(err);
-        alert("GPS Error: HTTPS接続と位置情報の許可を確認してください。");
-        watchId = null;
-        document.getElementById('intGpsBtn').className = "";
-    }, { enableHighAccuracy: true, maximumAge: 0 });
-});
-
-// 2. BLE START (ESP32パケット[3]対応)
-document.getElementById('btConnect').onclick = async () => {
-    try {
-        const device = await navigator.bluetooth.requestDevice({ filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }] });
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-        const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
-
-        char.addEventListener('characteristicvaluechanged', (e) => {
-            lastBleDataTime = Date.now();
-            const d = e.target.value;
-            if (d.byteLength >= 3) {
-                const hz = d.getUint16(0, true); 
-                currentRPM = (hz * 60) / pulseCount;
-                currentTemp = d.getUint8(2);
-                document.getElementById('temp_val').textContent = currentTemp;
-                if (currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
-                document.getElementById('btConnect').className = "btn-red";
+        lastGpsTime = Date.now();
+        currentSpeedKmh = (pos.coords.speed || 0) * 3.6;
+        if(currentSpeedKmh > maxSpeedInLap) maxSpeedInLap = currentSpeedKmh;
+        const newP = {lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), spd: currentSpeedKmh, rpm: currentRPM};
+        if(swState===1) {
+            trackPoints.push(newP);
+            if(lastPos) {
+                const hit = checkLineCross(lastPos, newP, slLine);
+                if(hit) processLap(hit, true, false);
             }
-        });
-        await char.startNotifications();
-    } catch (e) { console.error(e); }
+        }
+        lastPos = newP;
+        document.getElementById('intGpsBtn').className="btn-red";
+    }, null, {enableHighAccuracy:true});
 };
 
-// 3. HISTORY ボタン
-document.getElementById('historyBtn').addEventListener('click', () => {
-    if (lapRecords.length === 0) return;
-    const best = Math.min(...lapRecords.map(r => r.time));
-    document.getElementById('history-body').innerHTML = lapRecords.map(r => `
-        <tr style="${r.time === best ? 'background:rgba(228,0,43,0.1);' : ''}">
-            <td>${r.no}</td>
-            <td style="${r.time === best ? 'color:var(--hrc-red);' : ''}">${timeFormat(r.time)}</td>
-            <td>${r.max}</td><td>${r.maxRpm}</td>
-        </tr>`).join('');
-    document.getElementById('history-page').style.display = 'block';
-});
+document.getElementById('btConnect').onclick = async () => {
+    const dev = await navigator.bluetooth.requestDevice({filters:[{services:["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]}]});
+    const server = await dev.gatt.connect();
+    const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+    const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
+    char.addEventListener('characteristicvaluechanged', (e) => {
+        const d = e.target.value;
+        if(d.byteLength>=3){
+            const hz = d.getUint16(0,true); currentRPM = hz*60/pulseCount;
+            currentTemp = d.getUint8(2); document.getElementById('temp_val').textContent = currentTemp;
+            if(currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
+            document.getElementById('btConnect').className="btn-red";
+        }
+    });
+    await char.startNotifications();
+};
 
-document.getElementById('historyCloseBtn').onclick = () => { document.getElementById('history-page').style.display = 'none'; };
-
-// 4. その他ボタン
-document.getElementById('lapBtn').onclick = (e) => { e.preventDefault(); if(swState===1) processLap(Date.now(), false, true); };
 document.getElementById('startBtn').onclick = () => {
-    if (swState !== 1) { swState = 1; startTime = Date.now(); lapStartTime = 0; lapRecords = []; sessionMaxSpeed=0; sessionMaxRPM=0; }
-    else { swState = 2; }
+    if(swState!==1){ swState=1; startTime=Date.now(); lapStartTime=0; lapRecords=[]; trackPoints=[]; learnedHeading=null; }
+    else { swState=2; exportGPX(); }
+    document.getElementById('startBtn').className = (swState===1)?"btn-red":"";
 };
+
+document.getElementById('lapBtn').onclick = (e) => { e.preventDefault(); if(swState===1) processLap(Date.now(), false, true); };
+document.getElementById('historyBtn').onclick = () => {
+    const best = Math.min(...lapRecords.map(r=>r.time));
+    document.getElementById('history-body').innerHTML = lapRecords.map(r=>`<tr style="${r.time===best?'background:rgba(228,0,43,0.1);':''}"><td>${r.no}</td><td style="${r.time===best?'color:var(--hrc-red);':''}">${timeFormat(r.time)}</td><td>${r.max}</td><td>${r.maxRpm}</td></tr>`).join('');
+    document.getElementById('history-page').style.display='block';
+};
+document.getElementById('historyCloseBtn').onclick=()=>{document.getElementById('history-page').style.display='none';};
 
 window.onload = () => { tick(); };
 </script>
