@@ -177,41 +177,62 @@ function handlePositionUpdate(lat, lon, now) {
 }
 
 // --- 計測コア：手動・自動の判定を追加 ---
+/**
+ * ラップ確定処理
+ * @param {number} hitTime - 通過/打刻時のタイムスタンプ(ms)
+ * @param {boolean} useFreeze - 15秒間のタイム表示固定を行うか（自動計測用）
+ * @param {boolean} isManual - 手動ボタンによる打刻か（V5.1準拠の即時反応用）
+ */
 function processLap(hitTime, useFreeze, isManual = false) {
+    // 1. 直前のラップからの経過時間計算
     const lapT = hitTime - (lapStartTime || startTime);
     
-    // 【修正】手動（isManual=true）の場合は、2秒制限を無視して即座に処理
-    if (!isManual && lapT < 2000) return; 
-    if (isManual && lapT < 100) return; // チャタリング防止（0.1秒）のみ
+    // 2. フィルタリング・ガード（V5.1 Professional準拠）
+    // 手動(isManual: true)の場合は100msのチャタリング防止のみで即座に実行
+    // 自動(isManual: false)の場合は、GPSノイズ除去のため2000ms未満を無視
+    if (isManual) {
+        if (lapT < 100) return; 
+    } else {
+        if (lapT < 2000) return; 
+    }
 
+    // 3. セッション最大値の更新（履歴・データパネル用）
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
 
+    // 4. 履歴データ（lapRecords）への保存
+    // V10.6.1仕様：No, タイム, 区間最高速, 区間最高回転数をオブジェクトで保持
     lapRecords.unshift({ 
         no: lapRecords.length + 1, 
         time: lapT, 
         max: Math.round(maxSpeedInLap), 
-        maxRpm: Math.round(maxRpmInLap) 
+        maxRpm: Math.round(maxRpmInLap),
+        type: isManual ? "MANUAL" : "AUTO" // 判別用フラグ
     });
     
-    // リスト更新
+    // 5. 右側ラップパネルの表示更新
     const best = Math.min(...lapRecords.map(r => r.time));
     document.getElementById('lap').innerHTML = lapRecords.map(r => `
         <div class="lap-row ${r.time === best ? 'best-lap' : ''}">
-            <span>L${r.no}</span><span>${timeFormat(r.time)}</span>
+            <span style="font-size:10px; opacity:0.6;">${r.type === 'MANUAL' ? 'M' : ''}</span>
+            <span>L${r.no}</span>
+            <span>${timeFormat(r.time)}</span>
         </div>`).join('');
     
-    // 変数リセット
+    // 6. 計測変数のリセット
     lapStartTime = hitTime; 
     lastLapTime = hitTime;
-    maxSpeedInLap = 0; 
-    maxRpmInLap = 0;
+    maxSpeedInLap = 0; // 次の周回のためにリセット
+    maxRpmInLap = 0;   // 次の周回のためにリセット
 
-    // フリーズ処理（ライン通過時のみ15秒）
+    // 7. フリーズ（表示固定）処理
+    // V5.1準拠：ライン通過時のみ15秒固定、手動時は即座に次周タイマー表示
     if (useFreeze) { 
         isFrozen = true; 
         freezeDisplayTime = timeFormat(lapT); 
         freezeUntil = Date.now() + 15000; 
+    } else {
+        isFrozen = false; // 手動時はフリーズを強制解除
     }
 }
 
@@ -283,12 +304,20 @@ document.getElementById('startBtn').onclick = function() {
     else { swState = 2; }
 };
 
-// --- ボタンイベントの修正 ---
+// --- ボタンイベント：V5.1完全準拠 ---
 document.getElementById('lapBtn').onclick = (e) => {
-    e.preventDefault(); // ブラウザのデフォルト動作を抑止して反応速度向上
+    e.preventDefault(); // 反応速度向上のためのブラウザ制御
+    
     if (swState === 1) {
-        // 第3引数に true を渡し、即座にラップを切る
+        // 第2引数(useFreeze)=false : 手動時はフリーズさせない
+        // 第3引数(isManual)=true  : 2秒制限をバイパスして即座に実行
         processLap(Date.now(), false, true); 
+        
+        // 視覚的フィードバック（ボタンの色を一瞬変える）
+        const btn = document.getElementById('lapBtn');
+        const originalColor = btn.style.backgroundColor;
+        btn.style.backgroundColor = "var(--hrc-white)";
+        setTimeout(() => btn.style.backgroundColor = originalColor, 100);
     }
 };
 
