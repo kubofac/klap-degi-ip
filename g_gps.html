@@ -71,7 +71,8 @@
 let currentRPM = 0, currentTemp = 0, currentSpeedKmh = 0, maxSpeedInLap = 0, maxRpmInLap = 0;
 let sessionMaxSpeed = 0, sessionMaxRPM = 0, swState = 0, startTime = 0, lapStartTime = 0;
 let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, watchId = null;
-let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0, pulseCount = 1;
+let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0;
+let pulseCount = parseFloat(localStorage.getItem('pl1')) || 1;
 
 // 保存された座標があれば読み込み、なければデフォルト値
 // --- 修正後：設定ツールの保存名に合わせる ---
@@ -115,7 +116,8 @@ function exportGPX() {
 
 function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-    if (!isManual && lapT < 30000) return; // 30秒クールダウン
+   const coolDownLimit = parseInt(localStorage.getItem('lapCoolDownTime')) || 30000;
+if (!isManual && lapT < coolDownLimit) return;
 
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
@@ -244,26 +246,71 @@ function tick() {
 }
 
 document.getElementById('intGpsBtn').onclick = () => {
-    if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; document.getElementById('intGpsBtn').className=""; return; }
-    // ボタン押下直後：スキャン開始（オレンジ）
-    document.getElementById('intGpsBtn').className="btn-orange";
+    // 既に起動している場合は停止処理
+    if (watchId) { 
+        navigator.geolocation.clearWatch(watchId); 
+        watchId = null; 
+        document.getElementById('intGpsBtn').className = ""; 
+        return; 
+    }
+
+    // 設定ツールから「GPS閾値」を読み込む（保存されていなければデフォルト20m）
+    const gpsThreshold = parseFloat(localStorage.getItem('gpsThreshold')) || 20;
+
+    // ボタンの状態を「スキャン中（オレンジ）」に変更
+    document.getElementById('intGpsBtn').className = "btn-orange";
+
     watchId = navigator.geolocation.watchPosition(pos => {
-        // 最初の座標が届いた：位置取得完了（赤）
-        document.getElementById('intGpsBtn').className="btn-red";
+        // 最初の座標が届いたら「計測中（赤）」に変更
+        document.getElementById('intGpsBtn').className = "btn-red";
         
+        // 速度計算（m/sからkm/hへ）
         currentSpeedKmh = (pos.coords.speed || 0) * 3.6;
-        if(currentSpeedKmh > maxSpeedInLap) maxSpeedInLap = currentSpeedKmh;
-        const newP = {lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), spd: currentSpeedKmh, rpm: currentRPM};
-        if(swState===1) {
+        if (currentSpeedKmh > maxSpeedInLap) maxSpeedInLap = currentSpeedKmh;
+
+        const newP = {
+            lat: pos.coords.latitude, 
+            lng: pos.coords.longitude, 
+            t: Date.now(), 
+            spd: currentSpeedKmh, 
+            rpm: currentRPM
+        };
+
+        // タイマー稼働中（swState===1）のみ通過判定を行う
+        if (swState === 1) {
             trackPoints.push(newP);
-            if(lastPos) {
-                const hit = checkLineCross(lastPos, newP, slLine);
-                if(hit) processLap(hit, true, false);
+            
+            if (lastPos) {
+                // 1. まずスタートライン（P1）との距離をチェック（簡易計算）
+                const distP1 = getDistance(newP.lat, newP.lng, slLine.p1.lat, slLine.p1.lng);
+                
+                // 2. 設定した閾値（例:20m）より遠い場合は判定をスキップ（誤作動防止）
+                if (distP1 <= gpsThreshold) {
+                    const hit = checkLineCross(lastPos, newP, slLine);
+                    if (hit) {
+                        // processLap内でも、設定ツールの「クールダウン」が適用されるよう修正済み前提
+                        processLap(hit, true, false);
+                    }
+                }
             }
         }
         lastPos = newP;
-    }, null, {enableHighAccuracy:true});
+    }, 
+    (err) => console.error("GPS Error:", err), 
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
 };
+
+// 距離計算用の補助関数（これがないと閾値判定が動かないため、関数の外に追加してください）
+function getDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000; // 地球の半径 (m)
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // 単位: メートル
+}
 
 document.getElementById('btConnect').onclick = async () => {
     try {
