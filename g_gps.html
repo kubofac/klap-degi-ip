@@ -86,32 +86,26 @@ let detectedDirection = null;
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
 // --- V5.1スタイルのセグメント・タコメーター描画 ---
+// --- V5.1スタイルのセグメント・タコメーター + 目盛り数字 描画 ---
 function drawTacho(rpm) {
     const w = canvas.width = window.innerWidth;
     const h = canvas.height = window.innerHeight;
     ctx.clearRect(0, 0, w, h);
 
-    const segments = 75; // バーの本数
+    const segments = 75; 
     const activeIdx = Math.floor((rpm / 14000) * segments);
     
-    // レイアウト設定
-    const sX = 25; // 開始X
-    const hY = 45; // 上部ラインY
-    const bY = h - 20; // 下部開始Y
-    const rad = bY - hY; // カーブ半径
-    const curveEnd = 30; // カーブ区間のセグメント数
+    const sX = 25, hY = 45, bY = h - 20, rad = bY - hY, curveEnd = 30;
 
+    // --- 1. バー（セグメント）の描画 ---
     for (let i = 0; i <= segments; i++) {
         let x, y, ang, prog;
-        
         if (i <= curveEnd) {
-            // カーブ区間（左下から左上へ）
             prog = i / curveEnd;
             ang = Math.PI + (prog * (Math.PI / 2));
             x = sX + rad + Math.cos(ang) * rad;
             y = bY + Math.sin(ang) * rad;
         } else {
-            // 直線区間（左から右へ）
             prog = (i - curveEnd) / (segments - curveEnd);
             x = (sX + rad) + (prog * (w - (sX + rad) - 40));
             y = hY;
@@ -120,24 +114,38 @@ function drawTacho(rpm) {
 
         if (i < segments) {
             const currentRpmAtIdx = (i / segments) * 14000;
-            
-            // 色決定 (V5.1仕様)
             if (i < activeIdx) {
                 if (currentRpmAtIdx >= 12500) ctx.fillStyle = "var(--hrc-red)";
                 else if (currentRpmAtIdx >= 8000) ctx.fillStyle = "var(--hrc-blue)";
                 else ctx.fillStyle = "#ffffff";
             } else {
-                ctx.fillStyle = "#222"; // 未到達
+                ctx.fillStyle = "#222";
             }
 
-            // バーの描画
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(ang + Math.PI / 2);
-            // セグメントの太さと長さを調整
-            const barW = Math.max(4, w * 0.012);
-            const barH = Math.max(25, h * 0.12);
-            ctx.fillRect(-barW/2, -barH/2, barW, barH);
+            ctx.fillRect(-Math.max(4, w * 0.012)/2, -Math.max(25, h * 0.12)/2, Math.max(4, w * 0.012), Math.max(25, h * 0.12));
+            ctx.restore();
+        }
+
+        // --- 2. 目盛り数字（Label）の描画 ---
+        // 2000rpmごとに数字を表示 (0, 2, 4, 6, 8, 10, 12, 14)
+        const rpmAtThisIdx = Math.round((i / segments) * 14); 
+        if (i % (segments / 7) === 0 || i === segments) {
+            const labelRpm = Math.round((i / segments) * 14);
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // 数字の配置オフセット（バーの外側へ）
+            const offsetX = Math.cos(ang) * 25;
+            const offsetY = Math.sin(ang) * 25;
+            
+            ctx.font = "bold 14px Arial";
+            ctx.fillStyle = labelRpm >= 12 ? "var(--hrc-red)" : (labelRpm >= 8 ? "var(--hrc-blue)" : "#888");
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(labelRpm, offsetX, offsetY);
             ctx.restore();
         }
     }
