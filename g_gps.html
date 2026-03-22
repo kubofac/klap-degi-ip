@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KLAP DEGI ULTIMATE V2</title>
+    <title>KLAP DEGI ULTIMATE V2 - V10.6.1</title>
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
-    body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: var(--bg-dark); color: var(--hrc-white); font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
-    canvas { display: block; position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none; width: 100vw !important; height: 100vh !important; }
+    body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
+    canvas { display: block; position: fixed; top: 0; left: 0; z-index: 5; pointer-events: none; }
 
-    /* レイアウト（iPhone 8 / AQUOS 共通ベース） */
-    .main-ui-container { position: absolute; right: 15px; top: 90px; bottom: 50px; display: flex; flex-direction: row; align-items: flex-start; gap: 25px; z-index: 20; pointer-events: none; }
-    #info-overlay { display: flex; flex-direction: column; align-items: flex-end; text-align: right; height: 100%; justify-content: center; }
+    /* UIレイアウト */
+    .main-ui-container { position: absolute; right: 15px; top: 90px; bottom: 50px; display: flex; flex-direction: row; gap: 25px; z-index: 20; pointer-events: none; }
+    #info-overlay { display: flex; flex-direction: column; align-items: flex-end; text-align: right; justify-content: center; }
     #rpm_val { font-size: 11vh; font-weight: 900; line-height: 0.8; text-shadow: 3px 3px 10px #000; margin-bottom: 15px; }
-    #display1 { font-size: 17vh; letter-spacing: 1px; transform: scaleX(0.95); transform-origin: right; font-weight: 900; line-height: 0.8; color: var(--hrc-white); text-shadow: 4px 4px 15px #000; white-space: nowrap; display: inline-block; }
-    #display { font-size: 3.5vh; color: #bbb; text-shadow: 1px 1px 6px #000; margin-top: 5px; }
+    #display1 { font-size: 17vh; font-weight: 900; line-height: 0.8; text-shadow: 4px 4px 15px #000; white-space: nowrap; }
+    #display { font-size: 3.5vh; color: #bbb; margin-top: 5px; }
 
-    /* 履歴エリア（透明のまま維持） */
+    /* HISTORYエリア */
     #lap-panel { width: 140px; height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 30px; pointer-events: auto; }
-    #lap { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    #lap { flex: 1; overflow-y: auto; scrollbar-width: none; }
     #lap::-webkit-scrollbar { display: none; }
     .lap-row { display: flex; justify-content: flex-end; gap: 15px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 16px; font-weight: 900; }
-    .best-lap { color: var(--hrc-red) !important; }
+    .best-lap { color: var(--hrc-red) !important; font-style: italic; }
+    .val-best { color: var(--hrc-red) !important; font-weight: bold; } /* 項目別ベスト用 */
 
     /* データパネル */
     .data-panel { display: flex; flex-direction: column; gap: 12px; width: 90px; padding-top: 30px; pointer-events: auto; }
@@ -29,18 +30,16 @@
     .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
     .val { font-size: 32px; font-weight: 900; line-height: 0.9; }
 
-    /* フッターとボタン状態 */
+    /* フッターボタン */
     footer { height: 45px; display: flex; gap: 4px; padding: 3px; background: #000; border-top: 1px solid #333; z-index: 100; position: fixed; bottom: 0; left: 0; right: 0; padding-bottom: env(safe-area-inset-bottom); }
-    button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: auto; transition: background 0.2s; }
+    button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 10px; font-weight: bold; pointer-events: auto; transition: 0.2s; }
+    
+    /* ボタン色状態 */
+    .btn-red { background-color: var(--hrc-red) !important; }
+    .btn-orange { background-color: var(--hrc-orange) !important; }
 
-    /* クラスによる色変更（確実な反映用） */
-    button.status-active { background-color: var(--hrc-red) !important; }
-    button.status-ready { background-color: var(--hrc-orange) !important; }
-
-    /* レスポンシブ補正（iPhone 8 Landscape） */
     @media screen and (max-width: 667px) and (orientation: landscape) {
         #info-overlay { position: absolute !important; right: 255px !important; top: 20px !important; }
-        #display1 { font-size: 18vh !important; }
     }
 </style>
 </head>
@@ -72,59 +71,173 @@
 
 <script>
 'use strict';
+// --- グローバル変数 ---
 let currentRPM = 0, currentTemp = 0, currentSpeedKmh = 0, maxSpeed = 0;
+let lapMaxRPM = 0, sessionMaxSpeed = 0, sessionMaxRPM = 0;
 let lastPos = null, lastLapTime = 0, pulseCount = 1;
 let LAP_LINE_P1 = { lat: 0, lon: 0 }, LAP_LINE_P2 = { lat: 0, lon: 0 };
 let swState = 0, startTime = 0, lapStartTime = 0, lapRecords = [];
 let trackLogs = [], currentLapLog = [];
 let lastGpsDataTime = 0, lastBleDataTime = 0, watchId = null;
 let isFrozen = false, freezeDisplayTime = "", freezeStartTime = 0;
-let detectedDirection = null, wakeLock = null;
+let detectedDirection = null;
 
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
-// --- 判定ロジック ---
-function getIntersection(p1, p2, line) {
-    if (!line || !line.p1.lat) return null;
-    const x1 = p1.lon, y1 = p1.lat, x2 = p2.lon, y2 = p2.lat;
-    const x3 = line.p1.lon, y3 = line.p1.lat, x4 = line.p2.lon, y4 = line.p2.lat;
-    const den = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
-    if (Math.abs(den) < 1e-12) return null; 
-    const t = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / den;
-    const u = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / den;
-    if (t >= 0 && t <= 1 && u >= -0.2 && u <= 1.2) {
-        return { time: p1.time + (p2.time - p1.time) * t, dir: ((x4 - x3) * (y2 - y1) - (y4 - y3) * (x2 - x1)) > 0 ? 1 : -1 };
+// --- 1. タコメーター描画ロジック (V10.6.1仕様) ---
+function drawTacho(rpm) {
+    const w = window.innerWidth, h = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== w * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr); }
+    
+    ctx.clearRect(0, 0, w, h);
+
+    let rad = 85; if (w > 375) rad = Math.min(160, 85 + (w - 375) * 1.8);
+    const sideMargin = 45, topMargin = 60, footerHeight = h * 0.85, barWeight = 48;
+    const vLimit = topMargin + rad;
+    const totalLen = (footerHeight - vLimit) + (Math.PI * rad / 2) + (w - (sideMargin + rad));
+    
+    // 8,000rpm以下は表示しない or 0からの比率
+    const activeLen = (rpm / 14000) * totalLen;
+
+    const path = () => {
+        ctx.beginPath();
+        ctx.moveTo(sideMargin, footerHeight);
+        ctx.lineTo(sideMargin, vLimit);
+        ctx.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5);
+        ctx.lineTo(w, topMargin);
+    };
+
+    ctx.lineWidth = barWeight; ctx.lineCap = "butt";
+    path(); ctx.strokeStyle = "#1a1a1a"; ctx.stroke(); // ベースライン
+
+    // メインバー (白)
+    ctx.setLineDash([activeLen, totalLen]); ctx.strokeStyle = "#fff"; ctx.stroke();
+    
+    // パワーバンド (青: 8000rpm〜)
+    const blueS = totalLen * 8000 / 14000;
+    if (activeLen > blueS) {
+        ctx.setLineDash([activeLen - blueS, totalLen]); ctx.lineDashOffset = -blueS;
+        ctx.strokeStyle = "var(--hrc-blue)"; ctx.stroke();
     }
-    return null;
+
+    // レッドゾーン (赤: 12500rpm〜)
+    const redS = totalLen * 12500 / 14000;
+    if (activeLen > redS) {
+        ctx.setLineDash([activeLen - redS, totalLen]); ctx.lineDashOffset = -redS;
+        ctx.strokeStyle = "var(--hrc-red)"; ctx.stroke();
+    }
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
 }
 
+// --- 2. 計測ロジック ---
 function handleUpdate(lat, lon, now) {
     if (swState !== 1) return;
     if (currentSpeedKmh > maxSpeed) maxSpeed = currentSpeedKmh;
+    if (currentRPM > lapMaxRPM) lapMaxRPM = currentRPM;
+
     const currentPos = { lat, lon, time: now, rpm: currentRPM, temp: currentTemp, speed: currentSpeedKmh };
     currentLapLog.push(currentPos);
+
     if (lastPos && LAP_LINE_P1.lat !== 0) {
-        const hit = getIntersection(lastPos, currentPos, { p1: LAP_LINE_P1, p2: LAP_LINE_P2 });
-        if (hit) {
-            if (detectedDirection === null) detectedDirection = hit.dir;
-            const cd = parseFloat(localStorage.getItem('lapCoolDownTime')) || 15000;
-            if (hit.dir === detectedDirection && (hit.time - lastLapTime > cd)) processLap(hit.time, true);
+        const x1 = lastPos.lon, y1 = lastPos.lat, x2 = lon, y2 = lat;
+        const x3 = LAP_LINE_P1.lon, y3 = LAP_LINE_P1.lat, x4 = LAP_LINE_P2.lon, y4 = LAP_LINE_P2.lat;
+        const den = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+        if (Math.abs(den) > 1e-12) {
+            const t = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / den;
+            const u = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / den;
+            if (t >= 0 && t <= 1 && u >= -0.2 && u <= 1.2) {
+                const hitTime = lastPos.time + (now - lastPos.time) * t;
+                const dir = den > 0 ? 1 : -1;
+                if (detectedDirection === null) detectedDirection = dir;
+                if (dir === detectedDirection && (hitTime - lastLapTime > 15000)) {
+                    processLap(hitTime, true);
+                }
+            }
         }
     }
     lastPos = currentPos;
 }
 
-// --- 通信 ---
-function startInternalGps() {
+function processLap(exactTime, useFreeze) {
+    const lapTime = exactTime - (lapStartTime || startTime);
+    if (lapTime <= 0) return;
+
+    // セッションベスト更新用
+    if (maxSpeed > sessionMaxSpeed) sessionMaxSpeed = maxSpeed;
+    if (lapMaxRPM > sessionMaxRPM) sessionMaxRPM = lapMaxRPM;
+
+    lapRecords.unshift({ time: lapTime, maxSpeed: maxSpeed, maxRPM: lapMaxRPM });
+    trackLogs.push([...currentLapLog]);
+    
+    currentLapLog = []; lapMaxRPM = 0; maxSpeed = 0;
+    lapStartTime = exactTime; lastLapTime = exactTime;
+
+    updateHistoryUI();
+
+    if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapTime); freezeStartTime = Date.now(); }
+}
+
+function updateHistoryUI() {
+    const d = document.getElementById('lap'); d.innerHTML = "";
+    const bestTime = Math.min(...lapRecords.map(r => r.time));
+    lapRecords.forEach((r, i) => {
+        const div = document.createElement('div');
+        div.className = `lap-row ${r.time === bestTime ? 'best-lap' : ''}`;
+        const speedClass = r.maxSpeed === sessionMaxSpeed ? 'val-best' : '';
+        const rpmClass = r.maxRPM === sessionMaxRPM ? 'val-best' : '';
+        div.innerHTML = `<span>L${lapRecords.length - i}</span><span class="${speedClass}">${Math.round(r.maxSpeed)}</span><span class="${rpmClass}">${Math.round(r.maxRPM)}</span><span>${timeFormat(r.time)}</span>`;
+        d.appendChild(div);
+    });
+}
+
+// --- 3. システム系 ---
+function timeFormat(ms) {
+    let m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), mss = Math.floor(ms%1000);
+    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${mss.toString().padStart(3,'0')}`;
+}
+
+function tick() {
+    const now = Date.now();
+    drawTacho(currentRPM);
+    
+    if (swState === 1) {
+        document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
+        if (isFrozen) {
+            document.getElementById('display1').textContent = freezeDisplayTime;
+            document.getElementById('display1').style.color = "var(--hrc-red)";
+            if (now - freezeStartTime > 15000) isFrozen = false;
+        } else {
+            document.getElementById('display1').textContent = timeFormat(now - lapStartTime);
+            document.getElementById('display1').style.color = "#fff";
+        }
+    }
+
+    // ボタン色同期
+    const gBtn = document.getElementById('intGpsBtn');
+    if (lastGpsDataTime > 0 && (now - lastGpsDataTime < 3000)) gBtn.className = "btn-red";
+    else if (watchId) gBtn.className = "btn-orange";
+
+    if (lastBleDataTime > 0 && (now - lastBleDataTime < 2000)) document.getElementById('btConnect').className = "btn-red";
+    
+    const sBtn = document.getElementById('startBtn');
+    if (swState === 1) sBtn.className = "btn-red"; else sBtn.className = "";
+
+    document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
+    document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeed, sessionMaxSpeed));
+    requestAnimationFrame(tick);
+}
+
+// --- 通信・イベント ---
+document.getElementById('intGpsBtn').onclick = () => {
     if (watchId) return;
-    if ("wakeLock" in navigator) navigator.wakeLock.request("screen").then(w => wakeLock = w).catch(()=>{});
     watchId = navigator.geolocation.watchPosition(pos => {
         lastGpsDataTime = Date.now();
         currentSpeedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
         document.getElementById('speed_val').textContent = currentSpeedKmh;
         handleUpdate(pos.coords.latitude, pos.coords.longitude, Date.now());
-    }, null, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
-}
+    }, null, { enableHighAccuracy: true });
+};
 
 async function ble() {
     try {
@@ -143,79 +256,22 @@ async function ble() {
             }
         });
         await char.startNotifications();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.log(e); }
 }
-
-// --- ラップ・表示 ---
-function processLap(exactTime, useFreeze) {
-    const lapTime = exactTime - (lapStartTime || startTime);
-    if (lapTime <= 0) return;
-    lapRecords.unshift(lapTime);
-    trackLogs.push([...currentLapLog]);
-    currentLapLog = [];
-    lapStartTime = exactTime; lastLapTime = exactTime;
-    const d = document.getElementById('lap'); d.innerHTML = "";
-    const best = Math.min(...lapRecords);
-    lapRecords.forEach((t, i) => {
-        const r = document.createElement('div');
-        r.className = `lap-row ${t === best ? 'best-lap' : ''}`;
-        r.innerHTML = `<span>L${lapRecords.length - i}</span><span>${timeFormat(t)}</span>`;
-        d.appendChild(r);
-    });
-    if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapTime); freezeStartTime = Date.now(); }
-}
-
-function timeFormat(ms) {
-    let m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), mss = Math.floor(ms%1000);
-    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${mss.toString().padStart(3,'0')}`;
-}
-
-// --- メインループ & UI更新 ---
-function tick() {
-    const now = Date.now();
-    if (swState === 1) {
-        document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
-        if (isFrozen) {
-            document.getElementById('display1').textContent = freezeDisplayTime;
-            document.getElementById('display1').style.color = "var(--hrc-red)";
-            if (now - freezeStartTime > 15000) isFrozen = false;
-        } else {
-            document.getElementById('display1').textContent = timeFormat(now - lapStartTime);
-            document.getElementById('display1').style.color = "var(--hrc-white)";
-        }
-    }
-    document.getElementById('max_speed_val').textContent = maxSpeed;
-    document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
-    
-    // ボタンの状態更新
-    const gBtn = document.getElementById('intGpsBtn');
-    if (lastGpsDataTime > 0 && (now - lastGpsDataTime < 3000)) gBtn.classList.add('status-active');
-    else if (watchId) { gBtn.classList.remove('status-active'); gBtn.classList.add('status-ready'); }
-
-    const bBtn = document.getElementById('btConnect');
-    if (lastBleDataTime > 0 && (now - lastBleDataTime < 2000)) bBtn.classList.add('status-active');
-
-    const sBtn = document.getElementById('startBtn');
-    if (swState === 1) sBtn.classList.add('status-active'); else sBtn.classList.remove('status-active');
-
-    requestAnimationFrame(tick);
-}
-
-// --- イベント ---
-document.getElementById('intGpsBtn').onclick = startInternalGps;
 document.getElementById('btConnect').onclick = ble;
+
 document.getElementById('startBtn').onclick = function() {
-    if(swState !== 1) { 
-        swState = 1; startTime = Date.now(); lapStartTime = startTime; lastLapTime = 0;
-        trackLogs = []; currentLapLog = []; maxSpeed = 0; detectedDirection = null; lastPos = null;
-        document.getElementById('saveLogBtn').style.display = 'none';
-        document.getElementById('lap').innerHTML = ""; lapRecords = [];
-    } else { 
-        swState = 2; document.getElementById('saveLogBtn').style.display = 'flex';
+    if (swState !== 1) {
+        swState = 1; startTime = Date.now(); lapStartTime = startTime;
+        lapRecords = []; sessionMaxSpeed = 0; sessionMaxRPM = 0;
+        document.getElementById('lap').innerHTML = "";
+    } else {
+        swState = 2; document.getElementById('saveLogBtn').style.display = 'block';
     }
 };
-document.getElementById('lapBtn').onclick = () => { if(swState === 1) processLap(Date.now(), false); };
+
 document.getElementById('reloadBtn').onclick = () => location.reload();
+document.getElementById('lapBtn').onclick = () => { if(swState===1) processLap(Date.now(), false); };
 
 window.onload = () => {
     const p1a = localStorage.getItem('startLineP1Lat');
@@ -224,7 +280,7 @@ window.onload = () => {
         LAP_LINE_P2 = { lat: parseFloat(localStorage.getItem('startLineP2Lat')), lon: parseFloat(localStorage.getItem('startLineP2Lon')) };
         pulseCount = parseInt(localStorage.getItem('pl1')) || 1;
     }
-    tick(); // メインループ開始
+    tick();
 };
 </script>
 </body>
