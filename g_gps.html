@@ -3,33 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KLAP DEGI ULTIMATE V10.6.1 - PRO LAYOUT</title>
+    <title>KLAP DEGI V10.6.1 - PRO SEGMENT</title>
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --bg-dark: #000000; --hrc-orange: #FFA500; }
     body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
     
-    /* 背景タコメーター */
+    /* タコメーター用キャンバス */
     canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; pointer-events: none; width: 100vw !important; height: 100vh !important; }
 
-    /* メインUIコンテナ */
     .main-ui-container { position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 10; pointer-events: none; }
     
-    /* 中央・右寄りの情報表示 */
+    /* 中央情報表示 */
     #info-overlay { 
-        position: absolute; right: 280px; top: 48%; transform: translateY(-50%);
+        position: absolute; right: 280px; top: 50%; transform: translateY(-50%);
         display: flex; flex-direction: column; align-items: flex-end; text-align: right; 
     }
-    #rpm_val { font-size: 13vh; font-weight: 900; line-height: 0.8; color: var(--hrc-white); text-shadow: 2px 2px 10px #000; margin-bottom: 5px; }
-    #display1 { font-size: 18vh; font-weight: 900; line-height: 0.8; text-shadow: 4px 4px 15px #000; white-space: nowrap; }
+    #rpm_val { font-size: 13vh; font-weight: 900; line-height: 0.8; color: var(--hrc-white); text-shadow: 2px 2px 10px #000; }
+    #display1 { font-size: 17vh; font-weight: 900; line-height: 0.8; text-shadow: 4px 4px 15px #000; white-space: nowrap; }
     #display { font-size: 3.5vh; color: #888; margin-top: 5px; }
 
-    /* 右側のパネル（履歴リストとデータ） */
-    .right-panels { position: absolute; right: 15px; top: 75px; bottom: 65px; display: flex; gap: 20px; pointer-events: auto; }
-    
+    /* 右側パネル */
+    .right-panels { position: absolute; right: 15px; top: 80px; bottom: 65px; display: flex; gap: 20px; pointer-events: auto; }
     #lap-panel { width: 140px; display: flex; flex-direction: column; overflow: hidden; }
     #lap { flex: 1; overflow-y: auto; scrollbar-width: none; }
-    #lap::-webkit-scrollbar { display: none; }
-    .lap-row { display: flex; justify-content: flex-end; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 15px; font-weight: 900; color: #ccc; }
+    .lap-row { display: flex; justify-content: flex-end; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 15px; font-weight: 900; }
     .best-lap { color: var(--hrc-red) !important; }
 
     .data-panel { display: flex; flex-direction: column; gap: 15px; width: 90px; }
@@ -37,24 +34,13 @@
     .label { font-size: 10px; color: var(--hrc-red); font-weight: bold; }
     .val { font-size: 38px; font-weight: 900; line-height: 0.9; }
 
-    /* 詳細履歴ページ */
-    #history-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; padding: 20px; box-sizing: border-box; overflow-y: auto; }
-    #history-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 15px; }
-    #history-table th { color: var(--hrc-red); border-bottom: 2px solid var(--hrc-red); padding: 10px; text-align: center; }
-    #history-table td { padding: 10px; border-bottom: 1px solid #333; text-align: center; font-weight: bold; }
-    .close-btn { background: var(--hrc-red); color: white; padding: 15px; text-align: center; font-weight: bold; border-radius: 6px; cursor: pointer; }
-
     /* フッター */
-    footer { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; display: flex; gap: 4px; padding: 4px; background: #000; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
-    button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 6px; font-size: 9px; font-weight: bold; cursor: pointer; }
-    .btn-red { background-color: var(--hrc-red) !important; color: #fff; }
+    footer { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; display: flex; gap: 3px; padding: 4px; background: #000; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+    button { flex: 1; background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 6px; font-size: 9px; font-weight: bold; }
+    .btn-red { background-color: var(--hrc-red) !important; }
     .btn-orange { background-color: var(--hrc-orange) !important; color: #000; }
 
-    @media screen and (max-width: 667px) {
-        #info-overlay { right: 260px; }
-        #rpm_val { font-size: 10vh; }
-        #display1 { font-size: 15vh; }
-    }
+    @media screen and (max-width: 667px) { #info-overlay { right: 260px; } }
 </style>
 </head>
 <body>
@@ -78,81 +64,90 @@
     </div>
 </div>
 
-<div id="history-page">
-    <div class="close-btn" onclick="document.getElementById('history-page').style.display='none'">CLOSE HISTORY</div>
-    <table id="history-table">
-        <thead><tr><th>LAP</th><th>TIME</th><th>MAX SPEED</th><th>MAX RPM</th></tr></thead>
-        <tbody id="history-body"></tbody>
-    </table>
-</div>
-
 <footer>
     <button id="intGpsBtn">INT GPS</button>
     <button id="btConnect">BLE START</button>
     <button id="startBtn">TIMER</button>
     <button id="lapBtn">LAP/RESET</button>
     <button id="historyBtn">HISTORY</button>
-    <button id="saveLogBtn" style="display:none; background:var(--hrc-orange); color:#000;">LOG SAVE</button>
-    <button id="reloadBtn">RELOAD</button>
+    <button id="reloadBtn" onclick="location.reload()">RELOAD</button>
 </footer>
 
 <script>
 'use strict';
 let currentRPM = 0, currentTemp = 0, currentSpeedKmh = 0, maxSpeedInLap = 0, maxRpmInLap = 0;
-let sessionMaxSpeed = 0, sessionMaxRPM = 0;
-let lastPos = null, lastLapTime = 0, pulsePerRev = 1, cooldownMs = 15000;
+let lastPos = null, lastLapTime = 0, pulseCount = 1, cooldownMs = 15000;
 let LAP_LINE_P1 = { lat: 0, lon: 0 }, LAP_LINE_P2 = { lat: 0, lon: 0 };
-let swState = 0, startTime = 0, lapStartTime = 0, lapRecords = [], gpsPoints = [];
+let swState = 0, startTime = 0, lapStartTime = 0, lapRecords = [];
 let lastGpsDataTime = 0, lastBleDataTime = 0, watchId = null;
 let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0;
 let detectedDirection = null;
 
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
-// --- タコメーター描画（V10.6.1 シャープデザイン） ---
+// --- V5.1スタイルのセグメント・タコメーター描画 ---
 function drawTacho(rpm) {
-    const w = window.innerWidth, h = window.innerHeight;
-    const dpr = window.devicePixelRatio || 1;
-    if (canvas.width !== w * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr); }
+    const w = canvas.width = window.innerWidth;
+    const h = canvas.height = window.innerHeight;
     ctx.clearRect(0, 0, w, h);
 
-    let rad = 100; if (w > 400) rad = 140; 
-    const sideMargin = 40, topMargin = 50, footerHeight = h * 0.88, barWeight = 18;
-    const vLimit = topMargin + rad;
-    const totalLen = (footerHeight - vLimit) + (Math.PI * rad / 2) + (w - (sideMargin + rad));
-    const activeLen = Math.min((rpm / 14000) * totalLen, totalLen);
-
-    const path = () => {
-        ctx.beginPath(); ctx.moveTo(sideMargin, footerHeight); ctx.lineTo(sideMargin, vLimit);
-        ctx.arc(sideMargin + rad, vLimit, rad, Math.PI, Math.PI * 1.5); ctx.lineTo(w, topMargin);
-    };
-
-    ctx.lineWidth = barWeight; ctx.lineCap = "butt";
-    path(); ctx.strokeStyle = "#1a1a1a"; ctx.stroke(); // Base
-
-    ctx.setLineDash([activeLen, totalLen]); ctx.strokeStyle = "#ffffff"; ctx.stroke(); // Main
+    const segments = 75; // バーの本数
+    const activeIdx = Math.floor((rpm / 14000) * segments);
     
-    const blueS = totalLen * 8000 / 14000;
-    if (activeLen > blueS) {
-        ctx.setLineDash([activeLen - blueS, totalLen]); ctx.lineDashOffset = -blueS;
-        ctx.strokeStyle = "var(--hrc-blue)"; ctx.stroke();
+    // レイアウト設定
+    const sX = 25; // 開始X
+    const hY = 45; // 上部ラインY
+    const bY = h - 20; // 下部開始Y
+    const rad = bY - hY; // カーブ半径
+    const curveEnd = 30; // カーブ区間のセグメント数
+
+    for (let i = 0; i <= segments; i++) {
+        let x, y, ang, prog;
+        
+        if (i <= curveEnd) {
+            // カーブ区間（左下から左上へ）
+            prog = i / curveEnd;
+            ang = Math.PI + (prog * (Math.PI / 2));
+            x = sX + rad + Math.cos(ang) * rad;
+            y = bY + Math.sin(ang) * rad;
+        } else {
+            // 直線区間（左から右へ）
+            prog = (i - curveEnd) / (segments - curveEnd);
+            x = (sX + rad) + (prog * (w - (sX + rad) - 40));
+            y = hY;
+            ang = 1.5 * Math.PI;
+        }
+
+        if (i < segments) {
+            const currentRpmAtIdx = (i / segments) * 14000;
+            
+            // 色決定 (V5.1仕様)
+            if (i < activeIdx) {
+                if (currentRpmAtIdx >= 12500) ctx.fillStyle = "var(--hrc-red)";
+                else if (currentRpmAtIdx >= 8000) ctx.fillStyle = "var(--hrc-blue)";
+                else ctx.fillStyle = "#ffffff";
+            } else {
+                ctx.fillStyle = "#222"; // 未到達
+            }
+
+            // バーの描画
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(ang + Math.PI / 2);
+            // セグメントの太さと長さを調整
+            const barW = Math.max(4, w * 0.012);
+            const barH = Math.max(25, h * 0.12);
+            ctx.fillRect(-barW/2, -barH/2, barW, barH);
+            ctx.restore();
+        }
     }
-    const redS = totalLen * 12500 / 14000;
-    if (activeLen > redS) {
-        ctx.setLineDash([activeLen - redS, totalLen]); ctx.lineDashOffset = -redS;
-        ctx.strokeStyle = "var(--hrc-red)"; ctx.stroke();
-    }
-    ctx.setLineDash([]); ctx.lineDashOffset = 0;
 }
 
-// --- 計測ロジック ---
+// --- 計測エンジン (V10.6.1仕様) ---
 function handlePositionUpdate(lat, lon, now) {
     if (swState !== 1) return;
     if (currentSpeedKmh > maxSpeedInLap) maxSpeedInLap = currentSpeedKmh;
     if (currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
-
-    const cur = { lat, lon, time: now, rpm: currentRPM, speed: currentSpeedKmh, temp: currentTemp };
-    gpsPoints.push(cur);
 
     if (lastPos && LAP_LINE_P1.lat !== 0) {
         const x1 = lastPos.lon, y1 = lastPos.lat, x2 = lon, y2 = lat;
@@ -171,45 +166,20 @@ function handlePositionUpdate(lat, lon, now) {
             }
         }
     }
-    lastPos = cur;
+    lastPos = { lat, lon, time: now };
 }
 
 function processLap(hitTime, useFreeze) {
     const lapT = hitTime - (lapStartTime || startTime);
-    if (lapT < 1000) return;
+    if (lapT < 2000) return;
 
-    if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
-    if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
-
-    lapRecords.unshift({ no: lapRecords.length + 1, time: lapT, max: Math.round(maxSpeedInLap), maxRpm: Math.round(maxRpmInLap) });
+    lapRecords.unshift({ no: lapRecords.length+1, time: lapT });
+    const best = Math.min(...lapRecords.map(r => r.time));
+    document.getElementById('lap').innerHTML = lapRecords.map(r => `<div class="lap-row ${r.time===best?'best-lap':''}"><span>L${r.no}</span><span>${timeFormat(r.time)}</span></div>`).join('');
     
-    updateLapList();
     lapStartTime = hitTime; lastLapTime = hitTime;
-    maxSpeedInLap = 0; maxRpmInLap = 0;
-
     if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
 }
-
-function updateLapList() {
-    const best = Math.min(...lapRecords.map(r => r.time));
-    document.getElementById('lap').innerHTML = lapRecords.map(r => `
-        <div class="lap-row ${r.time === best ? 'best-lap' : ''}">
-            <span>L${r.no}</span><span>${timeFormat(r.time)}</span>
-        </div>`).join('');
-}
-
-document.getElementById('historyBtn').onclick = () => {
-    if (lapRecords.length === 0) return;
-    const bT = Math.min(...lapRecords.map(r => r.time));
-    document.getElementById('history-body').innerHTML = lapRecords.map(r => `
-        <tr style="${r.time === bT ? 'background:rgba(228,0,43,0.15);' : ''}">
-            <td>${r.no}</td>
-            <td style="${r.time === bT ? 'color:var(--hrc-red);' : ''}">${timeFormat(r.time)}</td>
-            <td style="${r.max === sessionMaxSpeed ? 'color:var(--hrc-red);' : ''}">${r.max}</td>
-            <td style="${r.maxRpm === sessionMaxRPM ? 'color:var(--hrc-red);' : ''}">${r.maxRpm}</td>
-        </tr>`).join('');
-    document.getElementById('history-page').style.display = 'block';
-};
 
 function timeFormat(ms) {
     const m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), mss = Math.floor(ms%1000);
@@ -221,7 +191,6 @@ function tick() {
     drawTacho(currentRPM);
     document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
     document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
-    document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
 
     if (swState === 1) {
         document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
@@ -235,7 +204,7 @@ function tick() {
         }
     }
 
-    // ボタンステータス同期
+    // ボタン色同期
     const gBtn = document.getElementById('intGpsBtn');
     if (lastGpsDataTime > 0 && (now - lastGpsDataTime < 3000)) gBtn.className = "btn-red";
     else if (watchId) gBtn.className = "btn-orange";
@@ -245,7 +214,7 @@ function tick() {
     requestAnimationFrame(tick);
 }
 
-// 通信イベント
+// 通信処理
 document.getElementById('intGpsBtn').onclick = () => {
     if (watchId) return;
     watchId = navigator.geolocation.watchPosition(pos => {
@@ -265,7 +234,7 @@ document.getElementById('btConnect').onclick = async () => {
             lastBleDataTime = Date.now();
             const d = e.target.value;
             if (d.byteLength >= 13) {
-                currentRPM = (d.getUint16(11, true) * 60) / pulsePerRev;
+                currentRPM = (d.getUint16(11, true) * 60) / pulseCount;
                 currentTemp = d.getUint8(10);
                 document.getElementById('temp_val').textContent = currentTemp;
             }
@@ -275,16 +244,11 @@ document.getElementById('btConnect').onclick = async () => {
 };
 
 document.getElementById('startBtn').onclick = function() {
-    if (swState !== 1) {
-        swState = 1; startTime = Date.now(); lapStartTime = 0; lapRecords = []; gpsPoints = [];
-        document.getElementById('lap').innerHTML = "";
-    } else {
-        swState = 2; document.getElementById('saveLogBtn').style.display = 'block';
-    }
+    if (swState !== 1) { swState = 1; startTime = Date.now(); lapStartTime = 0; lapRecords = []; }
+    else { swState = 2; }
 };
 
 document.getElementById('lapBtn').onclick = () => { if(swState===1) processLap(Date.now(), false); };
-document.getElementById('reloadBtn').onclick = () => location.reload();
 
 window.onload = () => {
     const p1a = localStorage.getItem('startLineP1Lat');
@@ -292,7 +256,7 @@ window.onload = () => {
         LAP_LINE_P1 = { lat: parseFloat(p1a), lon: parseFloat(localStorage.getItem('startLineP1Lon')) };
         LAP_LINE_P2 = { lat: parseFloat(localStorage.getItem('startLineP2Lat')), lon: parseFloat(localStorage.getItem('startLineP2Lon')) };
     }
-    pulsePerRev = parseFloat(localStorage.getItem('pl1')) || 1;
+    pulseCount = parseFloat(localStorage.getItem('pl1')) || 1;
     cooldownMs = parseInt(localStorage.getItem('lapCoolDownTime')) || 15000;
     tick();
 };
