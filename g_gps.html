@@ -320,24 +320,33 @@ window.onload = () => {
     tick(); 
 };
     // ストレージの入力状況を確認してRELOADボタンの色を変える関数
+// 状態（色）を判定し、クリック時の動作を設定する関数
 function updateStatusColors() {
-    const reloadBtn = document.getElementById('reloadBtn');
-    if (!reloadBtn) return;
+    const btn = document.getElementById('reloadBtn');
+    if (!btn) return;
 
-    // localStorageから座標（必須項目）を取得
+    // 1. リロード動作の登録（ここで確実に反応するようにします）
+    btn.onclick = () => {
+        if (confirm("セッションをリセットして再読み込みしますか？")) {
+            location.reload();
+        }
+    };
+
+    // 2. 必須座標の入力チェック
     const lat = localStorage.getItem('startLineLat');
     const lng = localStorage.getItem('startLineLng');
     
-    const isMissingCoords = (!lat || lat.trim() === "" || !lng || lng.trim() === "");
+    // 座標が空（null、空文字、スペースのみ）ならオレンジ
+    const isMissing = (!lat || lat.trim() === "" || !lng || lng.trim() === "");
 
-    if (isMissingCoords) {
-        // 【警告】オレンジにする
-        reloadBtn.style.backgroundColor = "var(--hrc-orange)";
-        reloadBtn.style.color = "#000";
+    if (isMissing) {
+        // 警告状態：オレンジ
+        btn.style.backgroundColor = "var(--hrc-orange)";
+        btn.style.color = "#000";
     } else {
-        // 【通常】デフォルトの黒に戻す
-        reloadBtn.style.backgroundColor = "#1a1a1a";
-        reloadBtn.style.color = "#fff";
+        // 正常状態：黒
+        btn.style.backgroundColor = "#1a1a1a";
+        btn.style.color = "#fff";
     }
 }
 </script>
