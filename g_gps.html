@@ -125,87 +125,96 @@ function drawTacho(rpm) {
     const w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
     ctx.clearRect(0,0,w,h);
     
-    const seg = 85; // セグメント総数
-    const active = Math.floor((rpm/14000)*seg);
+    // --- スケール仕様：1000rpm = 4セグメント ---
+    const segmentsPer1000 = 4;
+    const maxRPM = 14000;
+    const seg = (maxRPM / 1000) * segmentsPer1000; // 合計56セグメント
+    const active = Math.floor((rpm / 14000) * seg);
     
-    // --- レイアウト調整パラメータ ---
-    const sX = 20;          // 左マージン
-    const topY = 45;        // 直線部の高さ
-    const startY = h - 30;  // 0rpmの高さ
-    const rightEnd = w - 15; // 右端の到達点
+    // --- レイアウト設定 ---
+    const sX = 30;          
+    const topY = 50;        
+    const startY = h - 30;  
+    const rightEnd = w - 20; 
     
-    const rx = 80;          // 楕円の横半径
+    const rx = 100;         // 楕円の横半径
     const ry = startY - topY; // 楕円の縦半径
     
-    // 1. 各区間の概算距離を計算して比率を出す
-    const curveLen = (Math.PI * (rx + ry)) / 4; // 1/4楕円の弧の長さ（近似）
-    const lineLen = rightEnd - (sX + rx);      // 直線部の長さ
-    const totalLen = curveLen + lineLen;       // 全体の長さ
+    // 距離に基づいたセグメント分配
+    const curveLen = (Math.PI * (rx + ry)) / 4;
+    const lineLen = rightEnd - (sX + rx);
+    const totalLen = curveLen + lineLen;
     
-    const curveRatio = curveLen / totalLen;    // 全体に占める曲線の割合
-    const cE = Math.floor(seg * curveRatio);   // 曲線に割り当てるセグメント数
+    const curveRatio = curveLen / totalLen;
+    const cE = Math.round(seg * curveRatio); // 曲線区間に割り当てるセグメント数
     // ----------------------------
 
-    for (let i=0; i<=seg; i++) {
+    for (let i = 0; i <= seg; i++) {
         let x, y, ang;
         
-        if(i <= cE) {
-            // --- 1/4楕円部 ---
+        if (i <= cE) {
+            // --- 1/4楕円部 (等間隔プロット) ---
             const p = i / cE;
             const theta = Math.PI + (p * Math.PI / 2);
             x = sX + rx + Math.cos(theta) * rx;
             y = startY + Math.sin(theta) * ry;
             
-            // 接線方向の角度計算（楕円の角度をそのまま使うと歪むため調整）
-            // dx = -rx*sin(t), dy = ry*cos(t) -> atan2(dy, dx)
+            // 接線方向の計算
             const dx = -rx * Math.sin(theta);
             const dy = ry * Math.cos(theta);
             ang = Math.atan2(dy, dx);
         } else {
-            // --- 直線部 ---
+            // --- 直線部 (等間隔プロット) ---
             const p = (i - cE) / (seg - cE);
             x = (sX + rx) + (p * lineLen);
             y = topY;
-            ang = 0; // 水平（右向き）
+            ang = 0; // 右方向
         }
 
-        // バーの描画
-        if(i < seg) {
+        if (i < seg) {
             let color = "#222";
-            if(i < active) {
-                const curR = (i/seg)*14000;
-                if(curR >= 12500) color = "#E4002B";
-                else if(curR >= 8000) color = "#004098";
-                else color = "#FFFFFF";
+            if (i < active) {
+                const currentRPMVal = (i / seg) * maxRPM;
+                if (currentRPMVal >= 12500) color = "#E4002B";      // RED
+                else if (currentRPMVal >= 8000) color = "#004098";  // BLUE
+                else color = "#FFFFFF";                             // WHITE
             }
             
             ctx.fillStyle = color;
             ctx.save();
             ctx.translate(x, y);
+            ctx.rotate(ang - Math.PI / 2); // 進行方向に対して垂直に立てる
             
-            // angは「進む方向」なので、バーを立てるために +90度(PI/2) 回転
-            ctx.rotate(ang - Math.PI / 2); 
+            // --- バーのサイズ（太さを強調） ---
+            // 幅14px, 高さ40px。セグメント数が56に絞られたため、これくらい太いと力強いです
+            ctx.fillRect(-7, -20, 14, 40); 
             
-            // 密度が揃ったので、すべてのバーを同じサイズ(幅8, 高さ36)で描画
-            ctx.fillRect(-4, -18, 8, 36);
+            // 輪郭線を追加して、バー同士のセパレーションを強調
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-7, -20, 14, 40);
+            
             ctx.restore();
         }
 
-        // スケール数字
-        if(i % 12 === 0 || i === seg) {
+        // スケール数字（1000回転おきに表示、つまり4セグメントごと）
+        if (i % segmentsPer1000 === 0) {
             ctx.save();
             ctx.translate(x, y);
-            ctx.font = "italic bold 16px Arial";
-            ctx.fillStyle = "#888";
+            ctx.font = "italic bold 18px Arial";
+            ctx.fillStyle = "#999";
             ctx.textAlign = "center";
-            // バーの向き(ang)に対して垂直外側に配置
-            const labelDist = 38;
-            ctx.fillText(Math.round(i/seg*14), Math.sin(ang)*labelDist, -Math.cos(ang)*labelDist);
+            
+            // バーの向き(ang)に合わせて外側にオフセット
+            const labelDist = 48;
+            const ox = Math.sin(ang) * labelDist;
+            const oy = -Math.cos(ang) * labelDist;
+            ctx.fillText(Math.round((i / seg) * 14), ox, oy);
             ctx.restore();
         }
     }
 
-    // 数値更新
+    // 各種数値更新
     document.getElementById('rpm_val').textContent = Math.floor(rpm);
     document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
     document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
