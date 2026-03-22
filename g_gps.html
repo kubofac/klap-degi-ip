@@ -183,56 +183,59 @@ function handlePositionUpdate(lat, lon, now) {
  * @param {boolean} useFreeze - 15秒間のタイム表示固定を行うか（自動計測用）
  * @param {boolean} isManual - 手動ボタンによる打刻か（V5.1準拠の即時反応用）
  */
+/**
+ * ラップ確定処理（V5.1 Professional 準拠プロ仕様）
+ * @param {number} hitTime - 通過/打刻時のタイムスタンプ(ms)
+ * @param {boolean} useFreeze - 15秒間のタイム表示固定を行うか（自動計測用）
+ * @param {boolean} isManual - 手動ボタンによる打刻か（即時反応用）
+ */
 function processLap(hitTime, useFreeze, isManual = false) {
-    // 1. 直前のラップからの経過時間計算
+    // 1. 周回タイムの計算
     const lapT = hitTime - (lapStartTime || startTime);
     
-    // 2. フィルタリング・ガード（V5.1 Professional準拠）
-    // 手動(isManual: true)の場合は100msのチャタリング防止のみで即座に実行
-    // 自動(isManual: false)の場合は、GPSノイズ除去のため2000ms未満を無視
+    // 2. フィルタリング（不感時間）の設定
+    // 自動計測(GPS)は誤検知防止のため2秒制限、手動は0.1秒(チャタリング防止のみ)
     if (isManual) {
         if (lapT < 100) return; 
     } else {
         if (lapT < 2000) return; 
     }
 
-    // 3. セッション最大値の更新（履歴・データパネル用）
+    // 3. セッション最大値（最高速・最高回転数）の更新
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
 
-    // 4. 履歴データ（lapRecords）への保存
-    // V10.6.1仕様：No, タイム, 区間最高速, 区間最高回転数をオブジェクトで保持
+    // 4. 履歴データへの保存（内部データとしては詳細に記録）
     lapRecords.unshift({ 
         no: lapRecords.length + 1, 
         time: lapT, 
         max: Math.round(maxSpeedInLap), 
         maxRpm: Math.round(maxRpmInLap),
-        type: isManual ? "MANUAL" : "AUTO" // 判別用フラグ
+        type: isManual ? "MANUAL" : "AUTO"
     });
     
-    // 5. 右側ラップパネルの表示更新
+    // 5. メイン画面のラップリスト更新（★プロ仕様：M表示を排除）
     const best = Math.min(...lapRecords.map(r => r.time));
     document.getElementById('lap').innerHTML = lapRecords.map(r => `
         <div class="lap-row ${r.time === best ? 'best-lap' : ''}">
-            <span style="font-size:10px; opacity:0.6;">${r.type === 'MANUAL' ? 'M' : ''}</span>
             <span>L${r.no}</span>
             <span>${timeFormat(r.time)}</span>
         </div>`).join('');
     
-    // 6. 計測変数のリセット
+    // 6. 計測用変数のリセット
     lapStartTime = hitTime; 
     lastLapTime = hitTime;
-    maxSpeedInLap = 0; // 次の周回のためにリセット
-    maxRpmInLap = 0;   // 次の周回のためにリセット
+    maxSpeedInLap = 0; 
+    maxRpmInLap = 0;
 
-    // 7. フリーズ（表示固定）処理
-    // V5.1準拠：ライン通過時のみ15秒固定、手動時は即座に次周タイマー表示
+    // 7. タイム表示のフリーズ制御
+    // 自動計測時はライダーが確認できるよう15秒固定。手動時は即座に次周のカウントを開始。
     if (useFreeze) { 
         isFrozen = true; 
         freezeDisplayTime = timeFormat(lapT); 
         freezeUntil = Date.now() + 15000; 
     } else {
-        isFrozen = false; // 手動時はフリーズを強制解除
+        isFrozen = false; 
     }
 }
 
