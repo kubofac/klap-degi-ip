@@ -56,7 +56,7 @@
     <div style="overflow-y: auto; height: calc(100% - 60px);"><table id="history-table"><thead><tr><th>LAP</th><th>TIME</th><th>MAX SPD</th><th>MAX RPM</th></tr></thead><tbody id="history-body"></tbody></table></div>
 </div>
 <footer>
-    <button id="intGpsBtn">INT GPS</button>
+    <button id="intGpsBtn">USB GPS</button>
     <button id="btConnect">BLE START</button>
     <button id="startBtn">TIMER</button>
     <button id="lapBtn">LAP/RESET</button>
@@ -72,40 +72,38 @@ let sessionMaxSpeed = 0, sessionMaxRPM = 0, swState = 0, startTime = 0, lapStart
 let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, watchId = null;
 let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0, pulseCount = 1;
 
-// 仮想フィニッシュライン座標
 let slLine = { p1: {lat: 34.825, lng: 137.452}, p2: {lat: 34.826, lng: 137.453} };
-
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
 function checkLineCross(p1, p2, line) {
     const cross = (a, b, c) => (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
-    const s1 = cross(line.p1, line.p2, p1);
-    const s2 = cross(line.p1, line.p2, p2);
+    const s1 = cross(line.p1, line.p2, p1), s2 = cross(line.p1, line.p2, p2);
     if (s1 * s2 < 0) {
         const fraction = Math.abs(s1) / (Math.abs(s1) + Math.abs(s2));
         const estimatedTime = p1.t + (p2.t - p1.t) * fraction;
         const heading = Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat);
         if (learnedHeading === null) { learnedHeading = heading; return estimatedTime; }
-        if (Math.abs(heading - learnedHeading) < Math.PI / 4) return estimatedTime;
+        if (Math.abs(heading - learnedHeading) < Math.PI / 2) return estimatedTime;
     }
     return null;
 }
 
 function exportGPX() {
-    if (trackPoints.length === 0) { alert("NO DATA"); return; }
-    let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP DEGI" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>`;
+    if (trackPoints.length === 0) return;
+    let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP DEGI" xmlns="http://www.topografix.com/GPX/1/1">`;
+    xml += `<metadata><desc>SL:${slLine.p1.lat},${slLine.p1.lng}_${slLine.p2.lat},${slLine.p2.lng}</desc></metadata><trk><trkseg>`;
     trackPoints.forEach(p => {
         xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${new Date(p.t).toISOString()}</time><extensions><speed>${p.spd}</speed><rpm>${p.rpm}</rpm></extensions></trkpt>`;
     });
     xml += `</trkseg></trk></gpx>`;
     const blob = new Blob([xml], {type: 'application/gpx+xml'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `RaceLog_${new Date().getTime()}.gpx`; a.click();
+    a.download = `V1061_${new Date().getTime()}.gpx`; a.click();
 }
 
 function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-    if (!isManual && lapT < 15000) return; 
+    if (!isManual && lapT < 30000) return; // 30秒クールダウン
 
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
@@ -147,7 +145,7 @@ function drawTacho(rpm) {
             ctx.fillText(Math.round(i/seg*14), Math.cos(ang)*28, Math.sin(ang)*28); ctx.restore();
         }
     }
-    // 数値更新
+    // 数値更新（描画と同期）
     document.getElementById('rpm_val').textContent = Math.floor(rpm);
     document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
     document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
@@ -172,8 +170,12 @@ function tick() {
 
 document.getElementById('intGpsBtn').onclick = () => {
     if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; document.getElementById('intGpsBtn').className=""; return; }
+    // ボタン押下直後：スキャン開始（オレンジ）
     document.getElementById('intGpsBtn').className="btn-orange";
     watchId = navigator.geolocation.watchPosition(pos => {
+        // 最初の座標が届いた：位置取得完了（赤）
+        document.getElementById('intGpsBtn').className="btn-red";
+        
         currentSpeedKmh = (pos.coords.speed || 0) * 3.6;
         if(currentSpeedKmh > maxSpeedInLap) maxSpeedInLap = currentSpeedKmh;
         const newP = {lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), spd: currentSpeedKmh, rpm: currentRPM};
@@ -185,36 +187,38 @@ document.getElementById('intGpsBtn').onclick = () => {
             }
         }
         lastPos = newP;
-        document.getElementById('intGpsBtn').className="btn-red";
     }, null, {enableHighAccuracy:true});
 };
 
 document.getElementById('btConnect').onclick = async () => {
-    const dev = await navigator.bluetooth.requestDevice({filters:[{services:["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]}]});
-    const server = await dev.gatt.connect();
-    const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-    const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
-    char.addEventListener('characteristicvaluechanged', (e) => {
-        const d = e.target.value;
-        if(d.byteLength>=3){
-            const hz = d.getUint16(0,true); currentRPM = hz*60/pulseCount;
-            currentTemp = d.getUint8(2); document.getElementById('temp_val').textContent = currentTemp;
-            if(currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
-            document.getElementById('btConnect').className="btn-red";
-        }
-    });
-    await char.startNotifications();
+    try {
+        const dev = await navigator.bluetooth.requestDevice({filters:[{services:["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]}]});
+        const server = await dev.gatt.connect();
+        const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+        const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
+        char.addEventListener('characteristicvaluechanged', (e) => {
+            const d = e.target.value;
+            if(d.byteLength>=3){
+                const hz = d.getUint16(0,true); currentRPM = hz*60/pulseCount;
+                currentTemp = d.getUint8(2); document.getElementById('temp_val').textContent = currentTemp;
+                if(currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
+                document.getElementById('btConnect').className="btn-red";
+            }
+        });
+        await char.startNotifications();
+    } catch(e) { console.error(e); }
 };
 
 document.getElementById('startBtn').onclick = () => {
     if(swState!==1){
         swState=1; startTime=Date.now(); lapStartTime=0; lapRecords=[]; trackPoints=[]; learnedHeading=null;
         document.getElementById('gpxBtn').style.display = 'none';
+        document.getElementById('startBtn').className = "btn-red";
     } else {
         swState=2;
         document.getElementById('gpxBtn').style.display = 'block';
+        document.getElementById('startBtn').className = "";
     }
-    document.getElementById('startBtn').className = (swState===1)?"btn-red":"";
 };
 
 document.getElementById('gpxBtn').onclick = exportGPX;
@@ -222,12 +226,18 @@ document.getElementById('gpxBtn').onclick = exportGPX;
 document.getElementById('lapBtn').onclick = (e) => { 
     e.preventDefault(); 
     if(swState===1) processLap(Date.now(), false, true); 
-    else if(confirm("RESET SESSION?")) location.reload(); // 停止中にリセット
+    else if(confirm("RESET SESSION?")) location.reload();
 };
 
 document.getElementById('historyBtn').onclick = () => {
     const best = Math.min(...lapRecords.map(r=>r.time));
-    document.getElementById('history-body').innerHTML = lapRecords.map(r=>`<tr style="${r.time===best?'background:rgba(228,0,43,0.1);':''}"><td>${r.no}</td><td style="${r.time===best?'color:var(--hrc-red);':''}">${timeFormat(r.time)}</td><td>${r.max}</td><td>${r.maxRpm}</td></tr>`).join('');
+    document.getElementById('history-body').innerHTML = lapRecords.map(r=>`
+        <tr style="${r.time===best?'background:rgba(228,0,43,0.1);':''}">
+            <td>${r.no}</td>
+            <td style="${r.time===best?'color:var(--hrc-red);':''}">${timeFormat(r.time)}</td>
+            <td>${r.max}</td>
+            <td>${r.maxRpm}</td>
+        </tr>`).join('');
     document.getElementById('history-page').style.display='block';
 };
 document.getElementById('historyCloseBtn').onclick=()=>{document.getElementById('history-page').style.display='none';};
