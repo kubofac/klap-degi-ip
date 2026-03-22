@@ -176,22 +176,43 @@ function handlePositionUpdate(lat, lon, now) {
     lastPos = { lat, lon, time: now };
 }
 
-function processLap(hitTime, useFreeze) {
+// --- 計測コア：手動・自動の判定を追加 ---
+function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-    if (lapT < 2000) return;
+    
+    // 【修正】手動（isManual=true）の場合は、2秒制限を無視して即座に処理
+    if (!isManual && lapT < 2000) return; 
+    if (isManual && lapT < 100) return; // チャタリング防止（0.1秒）のみ
 
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
 
-    lapRecords.unshift({ no: lapRecords.length + 1, time: lapT, max: Math.round(maxSpeedInLap), maxRpm: Math.round(maxRpmInLap) });
+    lapRecords.unshift({ 
+        no: lapRecords.length + 1, 
+        time: lapT, 
+        max: Math.round(maxSpeedInLap), 
+        maxRpm: Math.round(maxRpmInLap) 
+    });
     
+    // リスト更新
     const best = Math.min(...lapRecords.map(r => r.time));
-    document.getElementById('lap').innerHTML = lapRecords.map(r => `<div class="lap-row ${r.time===best?'best-lap':''}"><span>L${r.no}</span><span>${timeFormat(r.time)}</span></div>`).join('');
+    document.getElementById('lap').innerHTML = lapRecords.map(r => `
+        <div class="lap-row ${r.time === best ? 'best-lap' : ''}">
+            <span>L${r.no}</span><span>${timeFormat(r.time)}</span>
+        </div>`).join('');
     
-    lapStartTime = hitTime; lastLapTime = hitTime;
-    maxSpeedInLap = 0; maxRpmInLap = 0;
+    // 変数リセット
+    lapStartTime = hitTime; 
+    lastLapTime = hitTime;
+    maxSpeedInLap = 0; 
+    maxRpmInLap = 0;
 
-    if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
+    // フリーズ処理（ライン通過時のみ15秒）
+    if (useFreeze) { 
+        isFrozen = true; 
+        freezeDisplayTime = timeFormat(lapT); 
+        freezeUntil = Date.now() + 15000; 
+    }
 }
 
 function timeFormat(ms) {
@@ -262,19 +283,13 @@ document.getElementById('startBtn').onclick = function() {
     else { swState = 2; }
 };
 
-document.getElementById('lapBtn').onclick = () => { if(swState===1) processLap(Date.now(), false); };
-
-document.getElementById('historyBtn').onclick = () => {
-    if (lapRecords.length === 0) return;
-    const bT = Math.min(...lapRecords.map(r => r.time));
-    document.getElementById('history-body').innerHTML = lapRecords.map(r => `
-        <tr style="${r.time === bT ? 'background:rgba(228,0,43,0.15);' : ''}">
-            <td>${r.no}</td>
-            <td style="${r.time === bT ? 'color:var(--hrc-red);' : ''}">${timeFormat(r.time)}</td>
-            <td style="${r.max === sessionMaxSpeed ? 'color:var(--hrc-red);' : ''}">${r.max}</td>
-            <td style="${r.maxRpm === sessionMaxRPM ? 'color:var(--hrc-red);' : ''}">${r.maxRpm}</td>
-        </tr>`).join('');
-    document.getElementById('history-page').style.display = 'block';
+// --- ボタンイベントの修正 ---
+document.getElementById('lapBtn').onclick = (e) => {
+    e.preventDefault(); // ブラウザのデフォルト動作を抑止して反応速度向上
+    if (swState === 1) {
+        // 第3引数に true を渡し、即座にラップを切る
+        processLap(Date.now(), false, true); 
+    }
 };
 
 window.onload = () => {
