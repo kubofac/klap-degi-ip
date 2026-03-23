@@ -253,13 +253,58 @@ document.getElementById('historyBtn').onclick = () => {
 };
 document.getElementById('historyCloseBtn').onclick=()=>{document.getElementById('history-page').style.display='none';};
 document.getElementById('gpxBtn').onclick = () => {
-    let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP DEGI" xmlns="http://www.topografix.com/GPX/1/1"><metadata><desc>SL:${slLine.p1.lat},${slLine.p1.lng}_${slLine.p2.lat},${slLine.p2.lng}</desc></metadata><trk><trkseg>`;
-    trackPoints.forEach(p => { xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${new Date(p.t).toISOString()}</time><extensions><speed>${p.spd}</speed><rpm>${p.rpm}</rpm></extensions></trkpt>`; });
-    xml += `</trkseg></trk></gpx>`;
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([xml], {type: 'application/gpx+xml'}));
-    a.download = `V1062_${new Date().getTime()}.gpx`; a.click();
-};
+    if (trackPoints.length === 0) {
+        alert("保存するログデータがありません。");
+        return;
+    }
 
+    // メタデータ用のSL座標文字列作成
+    const lineData = `SL:${slLine.p1.lat},${slLine.p1.lng},${slLine.p2.lat},${slLine.p2.lng}`;
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="KLAP_DEGI" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+<metadata>
+    <name>Race Session ${new Date().toLocaleString()}</name>
+    <desc>LINE_DATA[${lineData}]</desc>
+</metadata>
+<trk>
+  <name>Race Log</name>
+  <trkseg>`;
+
+    // 解析ソフトで0秒から開始させるための基準時刻（2000/1/1）
+    const baseStartTime = trackPoints[0].t;
+
+    trackPoints.forEach(p => { 
+        // 2000年基準の相対時刻に変換
+        const relativeTime = new Date(946684800000 + (p.t - baseStartTime)).toISOString();
+        const speedMS = ((p.spd || 0) / 3.6).toFixed(2); // km/h -> m/s
+        
+        xml += `
+    <trkpt lat="${p.lat}" lon="${p.lng}">
+      <time>${relativeTime}</time>
+      <speed>${speedMS}</speed>
+      <extensions>
+        <gpxtpx:TrackPointExtension>
+          <gpxtpx:hr>${Math.round(p.rpm || 0)}</gpxtpx:hr>
+        </gpxtpx:TrackPointExtension>
+      </extensions>
+    </trkpt>`; 
+    });
+
+    xml += `
+  </trkseg>
+</trk>
+</gpx>`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([xml], { type: 'application/gpx+xml' }));
+    a.download = `KLAP_V1062_${Date.now()}.gpx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    alert("解析ソフト互換GPXを保存しました（SL座標・RPM込）");
+};
 window.onload = () => { 
     const btn = document.getElementById('reloadBtn');
     btn.onclick = () => { if (confirm("RESET?")) location.reload(); };
