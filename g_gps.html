@@ -129,10 +129,12 @@ if (!isManual && lapT < coolDownLimit) return;
     lapStartTime = hitTime; maxSpeedInLap = 0; maxRpmInLap = 0;
     if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
 }
-
 function timeFormat(ms) {
-    const m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), mss = Math.floor(ms%1000);
-    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${mss.toString().padStart(3,'0')}`;
+    if (!ms || ms < 0) return "00:00.000"; // 安全装置
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    const mss = Math.floor(ms % 1000);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${mss.toString().padStart(3, '0')}`;
 }
 
 function drawTacho(rpm) {
@@ -231,6 +233,8 @@ function drawTacho(rpm) {
 function tick() {
     const now = Date.now();
     drawTacho(currentRPM);
+    
+    // swStateが1（計測中）の時だけ計算する
     if (swState === 1) {
         document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
         if (isFrozen && now < freezeUntil) {
@@ -238,8 +242,16 @@ function tick() {
             document.getElementById('display1').style.color = "#E4002B";
         } else {
             isFrozen = false;
-            document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime));
+            // lapStartTimeが0（1周目）の場合はstartTimeを使う
+            const currentLapTime = now - (lapStartTime || startTime);
+            document.getElementById('display1').textContent = timeFormat(currentLapTime);
             document.getElementById('display1').style.color = "#fff";
+        }
+    } else {
+        // 停止中は0を表示、または前回の結果を維持
+        if (swState === 0) {
+            document.getElementById('display').textContent = "TOTAL 00:00.000";
+            document.getElementById('display1').textContent = "00:00.000";
         }
     }
     requestAnimationFrame(tick);
@@ -332,14 +344,21 @@ document.getElementById('btConnect').onclick = async () => {
 };
 
 document.getElementById('startBtn').onclick = () => {
-    if(swState!==1){
-        swState=1; startTime=Date.now(); lapStartTime=0; lapRecords=[]; trackPoints=[]; learnedHeading=null;
+    if (swState !== 1) {
+        swState = 1; 
+        startTime = Date.now(); // ここで現在の時刻を基準点にする
+        lapStartTime = 0; 
+        lapRecords = []; 
+        trackPoints = []; 
+        learnedHeading = null;
         document.getElementById('gpxBtn').style.display = 'none';
         document.getElementById('startBtn').className = "btn-red";
+        document.getElementById('startBtn').textContent = "STOP"; // 状態がわかるように
     } else {
-        swState=2;
+        swState = 2; // 停止
         document.getElementById('gpxBtn').style.display = 'block';
         document.getElementById('startBtn').className = "";
+        document.getElementById('startBtn').textContent = "TIMER";
     }
 };
 
