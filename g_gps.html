@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KLAP DEGI V10.6.2 - PRO STABLE</title>
+    <title>KLAP DEGI V10.6.2 - CROSS-INTERSECT PRO</title>
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --hrc-orange: #FFA500; }
     body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
@@ -80,42 +80,31 @@ let slLine = {
 };
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
-// --- 線分交差判定と補正 ---
+// --- 交差判定ロジック (V10.6.1方式へ復帰) ---
 function checkLineCross(p1, p2, line) {
-    const cross = (a, b, c) => (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
-    const s1 = cross(line.p1, line.p2, p1), s2 = cross(line.p1, line.p2, p2);
-    if (s1 * s2 < 0) {
-        const fraction = Math.abs(s1) / (Math.abs(s1) + Math.abs(s2));
-        const estimatedTime = p1.t + (p2.t - p1.t) * fraction;
-        const heading = Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat);
-        if (learnedHeading === null) { learnedHeading = heading; return estimatedTime; }
-        if (Math.abs(heading - learnedHeading) < Math.PI / 2) return estimatedTime;
+    if (!line) return null;
+    const x1 = p1.lng, y1 = p1.lat, x2 = p2.lng, y2 = p2.lat;
+    const x3 = line.p1.lng, y3 = line.p1.lat, x4 = line.p2.lng, y4 = line.p2.lat;
+
+    const den = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+    if (Math.abs(den) < 1e-12) return null; // 平行
+
+    const t = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / den;
+    const u = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / den;
+
+    // t: 移動線上の交点 (0-1で今回またいだ)
+    // u: 計測ライン上の交点 (-0.2〜1.2でライン左右20%マージン内)
+    if (t >= 0 && t <= 1 && u >= -0.2 && u <= 1.2) {
+        const Lx = x4 - x3, Ly = y4 - y3, Vx = x2 - x1, Vy = y2 - y1;
+        const crossProduct = (Lx * Vy) - (Ly * Vx);
+        const currentDir = crossProduct > 0 ? 1 : -1;
+
+        const estimatedTime = p1.t + (p2.t - p1.t) * t;
+
+        if (learnedHeading === null) { learnedHeading = currentDir; return estimatedTime; }
+        if (currentDir === learnedHeading) return estimatedTime;
     }
     return null;
-}
-
-// --- カプセル判定用：点と線分の最短距離 ---
-function getDistanceToSegment(p, p1, p2) {
-    const R = 6371000;
-    const toRad = (n) => n * Math.PI / 180;
-    const x1 = toRad(p1.lng) * Math.cos(toRad(p1.lat)), y1 = toRad(p1.lat);
-    const x2 = toRad(p2.lng) * Math.cos(toRad(p2.lat)), y2 = toRad(p2.lat);
-    const px = toRad(p.lng) * Math.cos(toRad(p.lat)), py = toRad(p.lat);
-    
-    const dx = x2 - x1, dy = y2 - y1;
-    const l2 = dx*dx + dy*dy;
-    if (l2 === 0) return getDistance(p.lat, p.lng, p1.lat, p1.lng);
-    
-    let t = ((px - x1) * dx + (py - y1) * dy) / l2;
-    t = Math.max(0, Math.min(1, t)); // 0〜1に制限することでカプセル形状に
-    
-    return getDistance(p.lat, p.lng, p1.lat + t * (p2.lat - p1.lat), p1.lng + t * (p2.lng - p1.lng));
-}
-
-function getDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function timeFormat(ms) {
@@ -126,7 +115,7 @@ function timeFormat(ms) {
 
 function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-    const coolDownLimit = parseInt(localStorage.getItem('lapCoolDownTime')) || 30000;
+    const coolDownLimit = parseInt(localStorage.getItem('lapCoolDownTime')) || 15000;
     if (!isManual && lapT < coolDownLimit) return;
 
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
@@ -167,7 +156,6 @@ document.getElementById('intGpsBtn').onclick = () => {
         document.getElementById('intGpsBtn').className = ""; 
         return; 
     }
-    const gpsThreshold = parseFloat(localStorage.getItem('gpsThreshold')) || 20;
     document.getElementById('intGpsBtn').className = "btn-orange";
 
     watchId = navigator.geolocation.watchPosition(pos => {
@@ -177,16 +165,11 @@ document.getElementById('intGpsBtn').onclick = () => {
 
         const newP = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), spd: currentSpeedKmh, rpm: currentRPM };
 
-        if (swState === 1) {
+        if (swState === 1 && lastPos) {
             trackPoints.push(newP);
-            if (lastPos) {
-                // カプセル判定：線分からの最短距離が閾値以内か
-                const distToLine = getDistanceToSegment(newP, slLine.p1, slLine.p2);
-                if (distToLine <= gpsThreshold) {
-                    const hit = checkLineCross(lastPos, newP, slLine);
-                    if (hit) processLap(hit, true, false);
-                }
-            }
+            // 交差判定を直接呼び出し
+            const hit = checkLineCross(lastPos, newP, slLine);
+            if (hit) processLap(hit, true, false);
         }
         lastPos = newP;
     }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
@@ -206,7 +189,6 @@ document.getElementById('startBtn').onclick = () => {
     }
 };
 
-// --- 以下、描画・ボタン系維持 ---
 function drawTacho(rpm) {
     const w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
     ctx.clearRect(0,0,w,h);
@@ -281,8 +263,6 @@ document.getElementById('gpxBtn').onclick = () => {
 window.onload = () => { 
     const btn = document.getElementById('reloadBtn');
     btn.onclick = () => { if (confirm("RESET?")) location.reload(); };
-    const lat = localStorage.getItem('startLineP1Lat'), lng = localStorage.getItem('startLineP1Lon');
-    if (!lat || !lng) { btn.style.backgroundColor = "var(--hrc-orange)"; btn.style.color = "#000"; }
     tick(); 
 };
 </script>
