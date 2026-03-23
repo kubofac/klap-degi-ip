@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KLAP DEGI V10.6.1 - PRO FULL</title>
+    <title>KLAP DEGI V10.6.2 - PRO STABLE</title>
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --hrc-orange: #FFA500; }
     body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
@@ -63,7 +63,7 @@
     <button id="lapBtn">LAP/RESET</button>
     <button id="historyBtn">HISTORY</button>
     <button id="gpxBtn" style="display:none;" class="btn-orange">GPX SAVE</button>
-    <button id="reloadBtn" onclick="location.reload()">RELOAD</button>
+    <button id="reloadBtn">RELOAD</button>
 </footer>
 
 <script>
@@ -74,20 +74,13 @@ let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, wa
 let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0;
 let pulseCount = parseFloat(localStorage.getItem('pl1')) || 1;
 
-// 保存された座標があれば読み込み、なければデフォルト値
-// --- 修正後：設定ツールの保存名に合わせる ---
 let slLine = { 
-    p1: {
-        lat: parseFloat(localStorage.getItem('startLineP1Lat')) || 34.825, 
-        lng: parseFloat(localStorage.getItem('startLineP1Lon')) || 137.452
-    }, 
-    p2: {
-        lat: parseFloat(localStorage.getItem('startLineP2Lat')) || 34.826, 
-        lng: parseFloat(localStorage.getItem('startLineP2Lon')) || 137.453
-    } 
+    p1: { lat: parseFloat(localStorage.getItem('startLineP1Lat')) || 34.825, lng: parseFloat(localStorage.getItem('startLineP1Lon')) || 137.452 }, 
+    p2: { lat: parseFloat(localStorage.getItem('startLineP2Lat')) || 34.826, lng: parseFloat(localStorage.getItem('startLineP2Lon')) || 137.453 } 
 };
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 
+// --- 線分交差判定と補正 ---
 function checkLineCross(p1, p2, line) {
     const cross = (a, b, c) => (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
     const s1 = cross(line.p1, line.p2, p1), s2 = cross(line.p1, line.p2, p2);
@@ -101,23 +94,40 @@ function checkLineCross(p1, p2, line) {
     return null;
 }
 
-function exportGPX() {
-    if (trackPoints.length === 0) return;
-    let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP DEGI" xmlns="http://www.topografix.com/GPX/1/1">`;
-    xml += `<metadata><desc>SL:${slLine.p1.lat},${slLine.p1.lng}_${slLine.p2.lat},${slLine.p2.lng}</desc></metadata><trk><trkseg>`;
-    trackPoints.forEach(p => {
-        xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${new Date(p.t).toISOString()}</time><extensions><speed>${p.spd}</speed><rpm>${p.rpm}</rpm></extensions></trkpt>`;
-    });
-    xml += `</trkseg></trk></gpx>`;
-    const blob = new Blob([xml], {type: 'application/gpx+xml'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `V1061_${new Date().getTime()}.gpx`; a.click();
+// --- カプセル判定用：点と線分の最短距離 ---
+function getDistanceToSegment(p, p1, p2) {
+    const R = 6371000;
+    const toRad = (n) => n * Math.PI / 180;
+    const x1 = toRad(p1.lng) * Math.cos(toRad(p1.lat)), y1 = toRad(p1.lat);
+    const x2 = toRad(p2.lng) * Math.cos(toRad(p2.lat)), y2 = toRad(p2.lat);
+    const px = toRad(p.lng) * Math.cos(toRad(p.lat)), py = toRad(p.lat);
+    
+    const dx = x2 - x1, dy = y2 - y1;
+    const l2 = dx*dx + dy*dy;
+    if (l2 === 0) return getDistance(p.lat, p.lng, p1.lat, p1.lng);
+    
+    let t = ((px - x1) * dx + (py - y1) * dy) / l2;
+    t = Math.max(0, Math.min(1, t)); // 0〜1に制限することでカプセル形状に
+    
+    return getDistance(p.lat, p.lng, p1.lat + t * (p2.lat - p1.lat), p1.lng + t * (p2.lng - p1.lng));
+}
+
+function getDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function timeFormat(ms) {
+    if (!ms || ms < 0) return "00:00.000";
+    const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), mss = Math.floor(ms % 1000);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${mss.toString().padStart(3, '0')}`;
 }
 
 function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
-   const coolDownLimit = parseInt(localStorage.getItem('lapCoolDownTime')) || 30000;
-if (!isManual && lapT < coolDownLimit) return;
+    const coolDownLimit = parseInt(localStorage.getItem('lapCoolDownTime')) || 30000;
+    if (!isManual && lapT < coolDownLimit) return;
 
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
     if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
@@ -129,112 +139,10 @@ if (!isManual && lapT < coolDownLimit) return;
     lapStartTime = hitTime; maxSpeedInLap = 0; maxRpmInLap = 0;
     if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
 }
-function timeFormat(ms) {
-    if (!ms || ms < 0) return "00:00.000"; // 安全装置
-    const m = Math.floor(ms / 60000);
-    const s = Math.floor((ms % 60000) / 1000);
-    const mss = Math.floor(ms % 1000);
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${mss.toString().padStart(3, '0')}`;
-}
 
-function drawTacho(rpm) {
-    const w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
-    ctx.clearRect(0,0,w,h);
-    
-    // --- スケール仕様：1000rpm = 4セグメント ---
-    const segmentsPer1000 = 4;
-    const maxRPM = 14000;
-    const seg = (maxRPM / 1000) * segmentsPer1000; // 計56セグメント
-    const active = Math.floor((rpm / maxRPM) * seg);
-    
-    // --- レイアウト設定：正円半径モデル ---
-    const sX = 30;          
-    const hY = 60;          // 直線部の高さ（上端から）
-    const bY = h - 30;      // 開始地点の高さ（下端から）
-    const rad = bY - hY;    // 半径を上下の差分で決定
-    const rightEnd = w - 20; 
-    
-    // 距離ベースの分配
-    const curveLen = (Math.PI * rad) / 2;
-    const lineLen = rightEnd - (sX + rad);
-    const totalLen = curveLen + lineLen;
-    
-    const curveRatio = curveLen / totalLen;
-    const cE = Math.round(seg * curveRatio); 
-    // ----------------------------
-
-    for (let i = 0; i <= seg; i++) {
-        let x, y, ang;
-        
-        if (i <= cE) {
-            // --- 正円アーク部 ---
-            const p = i / cE;
-            const theta = Math.PI + (p * Math.PI / 2);
-            x = sX + rad + Math.cos(theta) * rad;
-            y = bY + Math.sin(theta) * rad;
-            ang = theta;
-        } else {
-            // --- 直線部 ---
-            const p = (i - cE) / (seg - cE);
-            x = (sX + rad) + (p * lineLen);
-            y = hY;
-            ang = 1.5 * Math.PI;
-        }
-
-        if (i < seg) {
-            let color = "#222"; 
-            const currentRPMVal = (i / seg) * maxRPM;
-            
-            if (i < active) {
-                if (currentRPMVal >= 12500) color = "#E4002B";      
-                else if (currentRPMVal >= 8000) color = "#004098";  
-                else color = "#FFFFFF";                             
-            }
-            
-            ctx.fillStyle = color;
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(ang + Math.PI / 2);
-            
-            // --- バーのサイズを元の長さに戻す ---
-            // 幅8px, 長さ30px。これが視認性とデザインのバランスが良い標準サイズです。
-            ctx.fillRect(-4, -15, 8, 30); 
-            
-            // 1000回転の区切り（4枚ごと）に少しだけアクセント
-            if (i % segmentsPer1000 === 0 && i < active) {
-                ctx.shadowBlur = 5;
-                ctx.shadowColor = color;
-                ctx.fillRect(-4, -15, 8, 30);
-            }
-            
-            ctx.restore();
-        }
-
-        // 1000rpmごとのラベル表示
-        if (i % segmentsPer1000 === 0) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.font = "italic bold 15px Arial";
-            ctx.fillStyle = "#888";
-            ctx.textAlign = "center";
-            
-            const dist = 32;
-            ctx.fillText(Math.round((i / seg) * 14), Math.cos(ang) * dist, Math.sin(ang) * dist);
-            ctx.restore();
-        }
-    }
-
-    // 数値同期更新
-    document.getElementById('rpm_val').textContent = Math.floor(rpm);
-    document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
-    document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
-    document.getElementById('temp_val').textContent = currentTemp;
-}
 function tick() {
     const now = Date.now();
     drawTacho(currentRPM);
-    
-    // swStateが1（計測中）の時だけ計算する
     if (swState === 1) {
         document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
         if (isFrozen && now < freezeUntil) {
@@ -242,86 +150,95 @@ function tick() {
             document.getElementById('display1').style.color = "#E4002B";
         } else {
             isFrozen = false;
-            // lapStartTimeが0（1周目）の場合はstartTimeを使う
-            const currentLapTime = now - (lapStartTime || startTime);
-            document.getElementById('display1').textContent = timeFormat(currentLapTime);
+            document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime));
             document.getElementById('display1').style.color = "#fff";
         }
-    } else {
-        // 停止中は0を表示、または前回の結果を維持
-        if (swState === 0) {
-            document.getElementById('display').textContent = "TOTAL 00:00.000";
-            document.getElementById('display1').textContent = "00:00.000";
-        }
+    } else if (swState === 0) {
+        document.getElementById('display').textContent = "TOTAL 00:00.000";
+        document.getElementById('display1').textContent = "00:00.000";
     }
     requestAnimationFrame(tick);
 }
 
 document.getElementById('intGpsBtn').onclick = () => {
-    // 既に起動している場合は停止処理
     if (watchId) { 
         navigator.geolocation.clearWatch(watchId); 
         watchId = null; 
         document.getElementById('intGpsBtn').className = ""; 
         return; 
     }
-
-    // 設定ツールから「GPS閾値」を読み込む（保存されていなければデフォルト20m）
     const gpsThreshold = parseFloat(localStorage.getItem('gpsThreshold')) || 20;
-
-    // ボタンの状態を「スキャン中（オレンジ）」に変更
     document.getElementById('intGpsBtn').className = "btn-orange";
 
     watchId = navigator.geolocation.watchPosition(pos => {
-        // 最初の座標が届いたら「計測中（赤）」に変更
         document.getElementById('intGpsBtn').className = "btn-red";
-        
-        // 速度計算（m/sからkm/hへ）
         currentSpeedKmh = (pos.coords.speed || 0) * 3.6;
         if (currentSpeedKmh > maxSpeedInLap) maxSpeedInLap = currentSpeedKmh;
 
-        const newP = {
-            lat: pos.coords.latitude, 
-            lng: pos.coords.longitude, 
-            t: Date.now(), 
-            spd: currentSpeedKmh, 
-            rpm: currentRPM
-        };
+        const newP = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), spd: currentSpeedKmh, rpm: currentRPM };
 
-        // タイマー稼働中（swState===1）のみ通過判定を行う
         if (swState === 1) {
             trackPoints.push(newP);
-            
             if (lastPos) {
-                // 1. まずスタートライン（P1）との距離をチェック（簡易計算）
-                const distP1 = getDistance(newP.lat, newP.lng, slLine.p1.lat, slLine.p1.lng);
-                
-                // 2. 設定した閾値（例:20m）より遠い場合は判定をスキップ（誤作動防止）
-                if (distP1 <= gpsThreshold) {
+                // カプセル判定：線分からの最短距離が閾値以内か
+                const distToLine = getDistanceToSegment(newP, slLine.p1, slLine.p2);
+                if (distToLine <= gpsThreshold) {
                     const hit = checkLineCross(lastPos, newP, slLine);
-                    if (hit) {
-                        // processLap内でも、設定ツールの「クールダウン」が適用されるよう修正済み前提
-                        processLap(hit, true, false);
-                    }
+                    if (hit) processLap(hit, true, false);
                 }
             }
         }
         lastPos = newP;
-    }, 
-    (err) => console.error("GPS Error:", err), 
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
+    }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
 };
 
-// 距離計算用の補助関数（これがないと閾値判定が動かないため、関数の外に追加してください）
-function getDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371000; // 地球の半径 (m)
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // 単位: メートル
+document.getElementById('startBtn').onclick = () => {
+    if(swState!==1){
+        swState=1; startTime=Date.now(); lapStartTime=0; lapRecords=[]; trackPoints=[]; learnedHeading=null;
+        document.getElementById('gpxBtn').style.display = 'none';
+        document.getElementById('startBtn').className = "btn-red";
+        document.getElementById('startBtn').textContent = "STOP";
+    } else {
+        swState=2;
+        document.getElementById('gpxBtn').style.display = 'block';
+        document.getElementById('startBtn').className = "";
+        document.getElementById('startBtn').textContent = "TIMER";
+    }
+};
+
+// --- 以下、描画・ボタン系維持 ---
+function drawTacho(rpm) {
+    const w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
+    ctx.clearRect(0,0,w,h);
+    const segmentsPer1000 = 4, maxRPM = 14000, seg = (maxRPM / 1000) * segmentsPer1000;
+    const active = Math.floor((rpm / maxRPM) * seg);
+    const sX = 30, hY = 60, bY = h - 30, rad = bY - hY, rightEnd = w - 20;
+    const curveLen = (Math.PI * rad) / 2, lineLen = rightEnd - (sX + rad), totalLen = curveLen + lineLen;
+    const cE = Math.round(seg * (curveLen / totalLen));
+    for (let i = 0; i <= seg; i++) {
+        let x, y, ang;
+        if (i <= cE) {
+            const theta = Math.PI + ((i / cE) * Math.PI / 2);
+            x = sX + rad + Math.cos(theta) * rad; y = bY + Math.sin(theta) * rad; ang = theta;
+        } else {
+            x = (sX + rad) + (((i - cE) / (seg - cE)) * lineLen); y = hY; ang = 1.5 * Math.PI;
+        }
+        if (i < seg) {
+            let color = "#222"; 
+            const curRPMVal = (i / seg) * maxRPM;
+            if (i < active) color = (curRPMVal >= 12500) ? "#E4002B" : (curRPMVal >= 8000) ? "#004098" : "#FFFFFF";
+            ctx.fillStyle = color; ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2);
+            ctx.fillRect(-4, -15, 8, 30); ctx.restore();
+        }
+        if (i % segmentsPer1000 === 0) {
+            ctx.save(); ctx.translate(x, y); ctx.font = "italic bold 15px Arial"; ctx.fillStyle = "#888"; ctx.textAlign = "center";
+            ctx.fillText(Math.round((i / seg) * 14), Math.cos(ang) * 32, Math.sin(ang) * 32); ctx.restore();
+        }
+    }
+    document.getElementById('rpm_val').textContent = Math.floor(rpm);
+    document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
+    document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
+    document.getElementById('temp_val').textContent = currentTemp;
 }
 
 document.getElementById('btConnect').onclick = async () => {
@@ -333,36 +250,13 @@ document.getElementById('btConnect').onclick = async () => {
         char.addEventListener('characteristicvaluechanged', (e) => {
             const d = e.target.value;
             if(d.byteLength>=3){
-                const hz = d.getUint16(0,true); currentRPM = hz*60/pulseCount;
-                currentTemp = d.getUint8(2); document.getElementById('temp_val').textContent = currentTemp;
-                if(currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
+                currentRPM = d.getUint16(0,true)*60/pulseCount; currentTemp = d.getUint8(2);
                 document.getElementById('btConnect').className="btn-red";
             }
         });
         await char.startNotifications();
     } catch(e) { console.error(e); }
 };
-
-document.getElementById('startBtn').onclick = () => {
-    if (swState !== 1) {
-        swState = 1; 
-        startTime = Date.now(); // ここで現在の時刻を基準点にする
-        lapStartTime = 0; 
-        lapRecords = []; 
-        trackPoints = []; 
-        learnedHeading = null;
-        document.getElementById('gpxBtn').style.display = 'none';
-        document.getElementById('startBtn').className = "btn-red";
-        document.getElementById('startBtn').textContent = "STOP"; // 状態がわかるように
-    } else {
-        swState = 2; // 停止
-        document.getElementById('gpxBtn').style.display = 'block';
-        document.getElementById('startBtn').className = "";
-        document.getElementById('startBtn').textContent = "TIMER";
-    }
-};
-
-document.getElementById('gpxBtn').onclick = exportGPX;
 
 document.getElementById('lapBtn').onclick = (e) => { 
     e.preventDefault(); 
@@ -372,48 +266,25 @@ document.getElementById('lapBtn').onclick = (e) => {
 
 document.getElementById('historyBtn').onclick = () => {
     const best = Math.min(...lapRecords.map(r=>r.time));
-    document.getElementById('history-body').innerHTML = lapRecords.map(r=>`
-        <tr style="${r.time===best?'background:rgba(228,0,43,0.1);':''}">
-            <td>${r.no}</td>
-            <td style="${r.time===best?'color:var(--hrc-red);':''}">${timeFormat(r.time)}</td>
-            <td>${r.max}</td>
-            <td>${r.maxRpm}</td>
-        </tr>`).join('');
+    document.getElementById('history-body').innerHTML = lapRecords.map(r=>`<tr style="${r.time===best?'background:rgba(228,0,43,0.1);':''}"><td>${r.no}</td><td style="${r.time===best?'color:var(--hrc-red);':''}">${timeFormat(r.time)}</td><td>${r.max}</td><td>${r.maxRpm}</td></tr>`).join('');
     document.getElementById('history-page').style.display='block';
 };
 document.getElementById('historyCloseBtn').onclick=()=>{document.getElementById('history-page').style.display='none';};
+document.getElementById('gpxBtn').onclick = () => {
+    let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP DEGI" xmlns="http://www.topografix.com/GPX/1/1"><metadata><desc>SL:${slLine.p1.lat},${slLine.p1.lng}_${slLine.p2.lat},${slLine.p2.lng}</desc></metadata><trk><trkseg>`;
+    trackPoints.forEach(p => { xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${new Date(p.t).toISOString()}</time><extensions><speed>${p.spd}</speed><rpm>${p.rpm}</rpm></extensions></trkpt>`; });
+    xml += `</trkseg></trk></gpx>`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([xml], {type: 'application/gpx+xml'}));
+    a.download = `V1062_${new Date().getTime()}.gpx`; a.click();
+};
 
 window.onload = () => { 
-    updateStatusColors(); // ボタンの色をチェック
+    const btn = document.getElementById('reloadBtn');
+    btn.onclick = () => { if (confirm("RESET?")) location.reload(); };
+    const lat = localStorage.getItem('startLineP1Lat'), lng = localStorage.getItem('startLineP1Lon');
+    if (!lat || !lng) { btn.style.backgroundColor = "var(--hrc-orange)"; btn.style.color = "#000"; }
     tick(); 
 };
-    // ストレージの入力状況を確認してRELOADボタンの色を変える関数
-// 状態（色）を判定し、クリック時の動作を設定する関数
-function updateStatusColors() {
-    const btn = document.getElementById('reloadBtn');
-    if (!btn) return;
-
-    btn.onclick = () => {
-        if (confirm("セッションをリセットして再読み込みしますか？")) {
-            location.reload();
-        }
-    };
-
-    // 【ここを修正】設定ツールが保存する名前に変更
-    const lat = localStorage.getItem('startLineP1Lat'); 
-    const lng = localStorage.getItem('startLineP1Lon');
-    
-    // どちらかが空ならオレンジ（警告）、両方あれば黒
-    const isMissing = (!lat || lat.trim() === "" || !lng || lng.trim() === "");
-
-    if (isMissing) {
-        btn.style.backgroundColor = "var(--hrc-orange)";
-        btn.style.color = "#000";
-    } else {
-        btn.style.backgroundColor = "#1a1a1a";
-        btn.style.color = "#fff";
-    }
-}
 </script>
 </body>
 </html>
