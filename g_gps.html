@@ -136,7 +136,7 @@ function tick() {
         document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
         if (isFrozen && now < freezeUntil) {
             document.getElementById('display1').textContent = freezeDisplayTime;
-            document.getElementById('display1').style.color = "#E4002B";
+            document.getElementById('display1').style.color = "#fff";
         } else {
             isFrozen = false;
             document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime));
