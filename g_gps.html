@@ -82,42 +82,61 @@ let lastBleDataTime = 0;
 let bleWaiting = false;
 
 // --- BLE接続ロジック (自動再接続・3バイト処理) ---
+
+
 const executeBLEConnection = async (device) => {
     try {
         const server = await device.gatt.connect();
 
-        // ★修正1：iPhoneの準備を待つ（これがないとサービス取得で失敗する）
+        // iPhoneのための待機
+        // iPhoneがサービスをスキャンする時間を稼ぐための待機
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        // ★修正2：UUIDはすべて「小文字」で記述
+        // UUIDはすべて「小文字」で指定（iOS/Bluefyの鉄則）
         const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
         const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
 
-        char.oncharacteristicvaluechanged = (e) => {
-   char.addEventListener('characteristicvaluechanged', (e) => {
+        // イベントリスナーで「届いたら即表示」を徹底
+        // ★修正ポイント：イベントの中で直接DOMを操作して数値を表示させる
+        char.addEventListener('characteristicvaluechanged', (e) => {
             const d = e.target.value;
             if (d.byteLength >= 3) {
-                const hz = d.getUint16(0, true); 
-                // Little EndianでHzを合成 (テストコードで確実な方法)
-                const low = d.getUint8(0);
-                const high = d.getUint8(1);
-                const hz = low + (high * 256);
-
-                // ★修正3：変数 pulseCount ではなく直接 localStorage ('pl1') を参照
+                // Hzの合成
+                // データの組み立て（リトルエンディアン）
+                const hz = d.getUint8(0) | (d.getUint8(1) << 8);
                 const ppr = parseFloat(localStorage.getItem('pl1')) || 1;
+
+                // 変数更新
+                // 変数更新（Canvas描画用）
                 currentRPM = (hz * 60) / ppr;
                 currentTemp = d.getUint8(2);
 
-                // ★修正4：データが届いた瞬間に時刻を更新（これで「赤」になる）
-                lastBleDataTime = Date.now(); 
-                bleWaiting = false;
-
-                // 数値表示を強制更新
+                // ★この場でHTML要素を直接更新（これがiPhoneで動く鍵です）
+                // ★直接表示（これで数値が止まらなくなります）
                 document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
                 document.getElementById('temp_val').textContent = currentTemp;
+
+                // 通信フラグの更新
+                // 通信成功フラグの更新
+                lastBleDataTime = Date.now(); 
+                bleWaiting = false;
             }
-        };
         });
+
+        await char.startNotifications();
+        lastBleDataTime = Date.now(); 
+        console.log("BLE Active: Display Updated in Event");
+        console.log("BLE Active: direct display mode");
+
+    } catch (e) {
+        console.error("BLE Error:", e);
+        // 再接続ロジック
+        // 切断時やエラー時の再試行
+        setTimeout(() => { 
+            if (device && device.gatt && !device.gatt.connected) executeBLEConnection(device); 
+        }, 3000);
+    }
+};
 
         await char.startNotifications();
         console.log("BLE Active on iPhone");
