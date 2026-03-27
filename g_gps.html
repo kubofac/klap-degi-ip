@@ -154,24 +154,37 @@ document.getElementById('btConnect').onclick = async () => {
 };
 
 // --- ステータス監視タイマー ---
+// --- ステータス監視タイマー（色変え判定の強化） ---
 setInterval(() => {
     const now = Date.now();
-    // BLEボタン状態 (1.5秒途絶えたらオレンジ、データありなら赤)
     const btBtn = document.getElementById('btConnect');
-    btBtn.className = (now - lastBleDataTime < 1500) ? 'btn-red' : (bleWaiting ? 'waiting' : '');
 
-    // RELOADボタン状態 (座標設定チェック)
+    // 判定条件を「3秒間データが途絶えたら」に緩める（iPhoneの通信間隔に合わせる）
+    if (now - lastBleDataTime < 3000) {
+        // データが届いている、または接続直後
+        btBtn.className = 'btn-red';
+        btBtn.textContent = 'BLE ACTIVE';
+    } else if (bleWaiting || (bleDevice && bleDevice.gatt.connected)) {
+        // 接続はされているがデータ待ち
+        btBtn.className = 'waiting';
+        btBtn.textContent = 'CONNECTED...';
+    } else {
+        // 完全に切断
+        btBtn.className = '';
+        btBtn.textContent = 'BLE START';
+    }
+
+    // RELOADボタン（ライン設定）のチェック
     const p1Lat = localStorage.getItem('startLineP1Lat');
-    const p2Lat = localStorage.getItem('startLineP2Lat');
     const relBtn = document.getElementById('reloadBtn');
-    if (!p1Lat || !p2Lat) {
+    if (!p1Lat) {
         relBtn.className = 'waiting';
         relBtn.textContent = 'SET LINE!';
     } else {
         relBtn.className = '';
         relBtn.textContent = 'RELOAD';
     }
-}, 1000);
+}, 500); // 1000msから500msに早めて反応を良くする
 
 let slLine = { 
     p1: { lat: parseFloat(localStorage.getItem('startLineP1Lat')) || 34.825, lng: parseFloat(localStorage.getItem('startLineP1Lon')) || 137.452 }, 
