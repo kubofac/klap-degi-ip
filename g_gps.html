@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KLAP DEGI V10.6.3 - PRO RECONNECT</title>
+    <title>KLAP DEGI V10.6.4 - PRO STABLE</title>
 <style>
     :root { --hrc-red: #E4002B; --hrc-blue: #004098; --hrc-white: #ffffff; --hrc-orange: #FFA500; }
     body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; position: fixed; }
@@ -33,7 +33,6 @@
     .btn-orange { background-color: var(--hrc-orange) !important; color: #000 !important; }
     .waiting { background-color: var(--hrc-orange) !important; color: #000 !important; }
     .active { background-color: var(--hrc-red) !important; }
-    @media screen and (max-width: 667px) { #info-overlay { right: 260px; } }
 </style>
 </head>
 <body>
@@ -76,128 +75,69 @@ let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, wa
 let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0;
 let pulseCount = parseFloat(localStorage.getItem('pl1')) || 1;
 
-// BLE用変数
-let bleDevice = null;
-let lastBleDataTime = 0;
-let bleWaiting = false;
+let bleDevice = null, lastBleDataTime = 0, bleWaiting = false;
 
-// --- BLE接続ロジック (自動再接続・3バイト処理) ---
+// --- BLE接続ロジック (addEventListener採用) ---
 const executeBLEConnection = async (device) => {
     const btBtn = document.getElementById('btConnect');
     try {
-        console.log("Connecting to GATT...");
         const server = await device.gatt.connect();
+        await new Promise(resolve => setTimeout(resolve, 800)); // iPhone待機
 
-        // ★重要：iPhone対策として接続直後に少し待機
-        // ★修正1：iPhoneの準備を待つ（これがないとサービス取得で失敗する）
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        console.log("Getting Service...");
-        // ★修正2：UUIDはすべて「小文字」で記述
         const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-        
-        console.log("Getting Characteristic...");
         const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
 
-        char.oncharacteristicvaluechanged = (e) => {
+        // ★修正点1: addEventListenerに変更し、1バイトずつ組み立て
+        char.addEventListener('characteristicvaluechanged', (e) => {
             const d = e.target.value;
             if (d.byteLength >= 3) {
-                const hz = d.getUint16(0, true); 
-                currentRPM = (hz * 60) / (pulseCount || 1);
-                
-                // ★修正3：変数 pulseCount ではなく直接 localStorage ('pl1') を参照
+                const hz = d.getUint8(0) | (d.getUint8(1) << 8);
+                const temp = d.getUint8(2);
                 const ppr = parseFloat(localStorage.getItem('pl1')) || 1;
                 currentRPM = (hz * 60) / ppr;
-                currentTemp = d.getUint8(2);
+                currentTemp = temp;
                 lastBleDataTime = Date.now();
-                
-                // ★修正4：データが届いた瞬間に時刻を更新（これで「赤」になる）
-                lastBleDataTime = Date.now(); 
                 bleWaiting = false;
             }
-        };
+        });
 
-        // 通知開始
         await char.startNotifications();
-        console.log("Notifications Started!");
-        console.log("BLE Active on iPhone");
-
-        // ここで初めて「接続完了」として扱う
         bleWaiting = false;
-        lastBleDataTime = Date.now(); // 強制的に「今データが来た」ことにして赤くする
-        // 接続直後に一度だけ赤くするために時刻を更新
         lastBleDataTime = Date.now(); 
-
     } catch (e) {
         console.error("BLE Error:", e);
         bleWaiting = true;
-        // エラー時はボタンを初期状態に戻す
-        btBtn.className = 'waiting'; 
-        // 3秒後に再試行
-        setTimeout(() => {
-            if (device.gatt.connected) executeBLEConnection(device);
-        }, 3000);
+        btBtn.className = 'waiting';
         setTimeout(() => { if (device.gatt.connected) executeBLEConnection(device); }, 3000);
     }
 };
 
-const onBLEDisconnected = (event) => {
-    bleWaiting = true;
-    executeBLEConnection(event.target);
-};
+const onBLEDisconnected = (event) => { bleWaiting = true; executeBLEConnection(event.target); };
 
 document.getElementById('btConnect').onclick = async () => {
     try {
         const dev = await navigator.bluetooth.requestDevice({
-            // UUIDをすべて「小文字」で記述（iOSの鉄則）
             filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }],
             optionalServices: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]
         });
         bleDevice = dev;
-        // 切断イベントを登録
         bleDevice.addEventListener('gattserverdisconnected', onBLEDisconnected);
-
-        // オレンジ色にして接続開始
         document.getElementById('btConnect').className = 'waiting';
         await executeBLEConnection(bleDevice);
-    } catch (e) { 
-        console.error("Device Selection Error:", e); 
-        document.getElementById('btConnect').className = '';
-    }
+    } catch (e) { console.error(e); }
 };
 
-// --- ステータス監視タイマー ---
-// --- ステータス監視タイマー（色変え判定の強化） ---
 setInterval(() => {
     const now = Date.now();
     const btBtn = document.getElementById('btConnect');
-
-    // 判定条件を「3秒間データが途絶えたら」に緩める（iPhoneの通信間隔に合わせる）
-    if (now - lastBleDataTime < 3000) {
-        // データが届いている、または接続直後
-        btBtn.className = 'btn-red';
-        btBtn.textContent = 'BLE ACTIVE';
-    } else if (bleWaiting || (bleDevice && bleDevice.gatt.connected)) {
-        // 接続はされているがデータ待ち
-        btBtn.className = 'waiting';
-        btBtn.textContent = 'CONNECTED...';
-    } else {
-        // 完全に切断
-        btBtn.className = '';
-        btBtn.textContent = 'BLE START';
-    }
-
-    // RELOADボタン（ライン設定）のチェック
+    if (now - lastBleDataTime < 3000) { btBtn.className = 'btn-red'; btBtn.textContent = 'BLE ACTIVE'; }
+    else if (bleWaiting || (bleDevice && bleDevice.gatt.connected)) { btBtn.className = 'waiting'; btBtn.textContent = 'CONNECTED...'; }
+    else { btBtn.className = ''; btBtn.textContent = 'BLE START'; }
     const p1Lat = localStorage.getItem('startLineP1Lat');
     const relBtn = document.getElementById('reloadBtn');
-    if (!p1Lat) {
-        relBtn.className = 'waiting';
-        relBtn.textContent = 'SET LINE!';
-    } else {
-        relBtn.className = '';
-        relBtn.textContent = 'RELOAD';
-    }
-}, 500); // 1000msから500msに早めて反応を良くする
+    if (!p1Lat) { relBtn.className = 'waiting'; relBtn.textContent = 'SET LINE!'; }
+    else { relBtn.className = ''; relBtn.textContent = 'RELOAD'; }
+}, 500);
 
 let slLine = { 
     p1: { lat: parseFloat(localStorage.getItem('startLineP1Lat')) || 34.825, lng: parseFloat(localStorage.getItem('startLineP1Lon')) || 137.452 }, 
@@ -224,7 +164,6 @@ function checkLineCross(p1, p2, line) {
 }
 
 function timeFormat(ms) {
-    if (!ms || ms < 0) return "00:00.000";
     const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), mss = Math.floor(ms % 1000);
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${mss.toString().padStart(3, '0')}`;
 }
@@ -234,7 +173,7 @@ function processLap(hitTime, useFreeze, isManual = false) {
     const coolDownLimit = parseInt(localStorage.getItem('lapCoolDownTime')) || 15000;
     if (!isManual && lapT < coolDownLimit) return;
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
-    if (maxRpmInLap > sessionMaxRPM) maxRpmInLap = maxRpmInLap;
+    if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
     lapRecords.unshift({ no: lapRecords.length + 1, time: lapT, max: Math.round(maxSpeedInLap), maxRpm: Math.round(maxRpmInLap) });
     const best = Math.min(...lapRecords.map(r => r.time));
     document.getElementById('lap').innerHTML = lapRecords.map(r => `<div class="lap-row ${r.time===best?'best-lap':''}"><span>L${r.no}</span><span>${timeFormat(r.time)}</span></div>`).join('');
@@ -242,22 +181,24 @@ function processLap(hitTime, useFreeze, isManual = false) {
     if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
 }
 
+// ★修正点2: tick()から描画処理を分離し、独立してループさせる
 function tick() {
     const now = Date.now();
-    drawTacho(currentRPM);
     if (swState === 1) {
         document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
-        if (isFrozen && now < freezeUntil) {
-            document.getElementById('display1').textContent = freezeDisplayTime;
-        } else {
-            isFrozen = false;
-            document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime));
-        }
+        if (isFrozen && now < freezeUntil) { document.getElementById('display1').textContent = freezeDisplayTime; }
+        else { isFrozen = false; document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime)); }
     } else if (swState === 0) {
         document.getElementById('display').textContent = "TOTAL 00:00.000";
         document.getElementById('display1').textContent = "00:00.000";
     }
     requestAnimationFrame(tick);
+}
+
+// ★独立した描画ループ（タイマー停止中も常時稼働）
+function renderLoop() {
+    drawTacho(currentRPM);
+    requestAnimationFrame(renderLoop);
 }
 
 document.getElementById('intGpsBtn').onclick = () => {
@@ -281,13 +222,10 @@ document.getElementById('startBtn').onclick = () => {
     if(swState!==1){
         swState=1; startTime=Date.now(); lapStartTime=0; lapRecords=[]; trackPoints=[]; learnedHeading=null;
         document.getElementById('gpxBtn').style.display = 'none';
-        document.getElementById('startBtn').className = "btn-red";
-        document.getElementById('startBtn').textContent = "STOP";
+        document.getElementById('startBtn').className = "btn-red"; document.getElementById('startBtn').textContent = "STOP";
     } else {
-        swState=2;
-        document.getElementById('gpxBtn').style.display = 'block';
-        document.getElementById('startBtn').className = "";
-        document.getElementById('startBtn').textContent = "TIMER";
+        swState=2; document.getElementById('gpxBtn').style.display = 'block';
+        document.getElementById('startBtn').className = ""; document.getElementById('startBtn').textContent = "TIMER";
     }
 };
 
@@ -297,25 +235,15 @@ function drawTacho(rpm) {
     const segmentsPer1000 = 4, maxRPM = 14000, seg = (maxRPM / 1000) * segmentsPer1000;
     const active = Math.floor((rpm / maxRPM) * seg);
     const sX = 30, hY = 60, bY = h - 30, rad = bY - hY, rightEnd = w - 20;
-    const curveLen = (Math.PI * rad) / 2, lineLen = rightEnd - (sX + rad), totalLen = curveLen + lineLen;
-    const cE = Math.round(seg * (curveLen / totalLen));
+    const cE = Math.round(seg * (((Math.PI * rad) / 2) / (((Math.PI * rad) / 2) + (rightEnd - (sX + rad)))));
     for (let i = 0; i <= seg; i++) {
         let x, y, ang;
-        if (i <= cE) {
-            const theta = Math.PI + ((i / cE) * Math.PI / 2);
-            x = sX + rad + Math.cos(theta) * rad; y = bY + Math.sin(theta) * rad; ang = theta;
-        } else {
-            x = (sX + rad) + (((i - cE) / (seg - cE)) * lineLen); y = hY; ang = 1.5 * Math.PI;
-        }
+        if (i <= cE) { const theta = Math.PI + ((i / cE) * Math.PI / 2); x = sX + rad + Math.cos(theta) * rad; y = bY + Math.sin(theta) * rad; ang = theta; }
+        else { x = (sX + rad) + (((i - cE) / (seg - cE)) * (rightEnd - (sX + rad))); y = hY; ang = 1.5 * Math.PI; }
         if (i < seg) {
             let color = "#222"; 
-            const curRPMVal = (i / seg) * maxRPM;
-            if (i < active) {
-                // 回転数色表示ロジック（成功版の数値へ）
-                color = (curRPMVal >= 10500) ? "#E4002B" : (curRPMVal >= 6000) ? "#004098" : "#FFFFFF";
-            }
-            ctx.fillStyle = color; ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2);
-            ctx.fillRect(-4, -15, 8, 30); ctx.restore();
+            if (i < active) { color = ((i/seg)*maxRPM >= 10500) ? "#E4002B" : ((i/seg)*maxRPM >= 6000) ? "#004098" : "#FFFFFF"; }
+            ctx.fillStyle = color; ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2); ctx.fillRect(-4, -15, 8, 30); ctx.restore();
         }
         if (i % segmentsPer1000 === 0) {
             ctx.save(); ctx.translate(x, y); ctx.font = "italic bold 15px Arial"; ctx.fillStyle = "#888"; ctx.textAlign = "center";
@@ -345,22 +273,20 @@ document.getElementById('gpxBtn').onclick = () => {
     if (trackPoints.length === 0) return;
     const lineData = `SL:${slLine.p1.lat},${slLine.p1.lng},${slLine.p2.lat},${slLine.p2.lng}`;
     let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP_DEGI" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"><metadata><desc>LINE_DATA[${lineData}]</desc></metadata><trk><trkseg>`;
-    const baseStartTime = trackPoints[0].t;
+    const baseT = trackPoints[0].t;
     trackPoints.forEach(p => { 
-        const relativeTime = new Date(946684800000 + (p.t - baseStartTime)).toISOString();
-        xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${relativeTime}</time><speed>${((p.spd || 0)/3.6).toFixed(2)}</speed><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>${Math.round(p.rpm || 0)}</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>`; 
+        const iso = new Date(946684800000 + (p.t - baseT)).toISOString();
+        xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${iso}</time><speed>${(p.spd/3.6).toFixed(2)}</speed><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>`; 
     });
     xml += `</trkseg></trk></gpx>`;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([xml], { type: 'application/gpx+xml' }));
-    a.download = `KLAP_V1063_${Date.now()}.gpx`;
-    a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([xml], { type: 'application/gpx+xml' }));
+    a.download = `KLAP_V1064_${Date.now()}.gpx`; a.click();
 };
 
 window.onload = () => { 
-    const btn = document.getElementById('reloadBtn');
-    btn.onclick = () => { if (confirm("RESET?")) location.reload(); };
-    tick(); 
+    document.getElementById('reloadBtn').onclick = () => { if (confirm("RESET?")) location.reload(); };
+    renderLoop(); // 描画開始
+    tick(); // タイマー監視開始
 };
 </script>
 </body>
