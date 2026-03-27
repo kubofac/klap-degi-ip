@@ -136,20 +136,19 @@ const onBLEDisconnected = (event) => {
 document.getElementById('btConnect').onclick = async () => {
     try {
         const dev = await navigator.bluetooth.requestDevice({
-            // filtersだけでなく、optionalServicesにも同じUUIDを入れるのがiPhoneの鉄則
+            // UUIDをすべて「小文字」で記述（iOSの鉄則）
             filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }],
             optionalServices: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]
         });
         bleDevice = dev;
+        // 切断イベントを登録
         bleDevice.addEventListener('gattserverdisconnected', onBLEDisconnected);
         
-        // ボタンを「接続中（オレンジ）」にする
+        // オレンジ色にして接続開始
         document.getElementById('btConnect').className = 'waiting';
-        bleWaiting = true;
-        
         await executeBLEConnection(bleDevice);
     } catch (e) { 
-        console.error(e);
+        console.error("Device Selection Error:", e); 
         document.getElementById('btConnect').className = '';
     }
 };
