@@ -82,16 +82,7 @@ let lastBleDataTime = 0;
 let bleWaiting = false;
 
 // --- BLE接続ロジック (自動再接続・3バイト処理) ---
-const executeBLEConnection = async (device) => {
-    try {
-        const server = await device.gatt.connect();
-        
-        // ★修正1：iPhoneの準備を待つ（これがないとサービス取得で失敗する）
-        await new Promise(resolve => setTimeout(resolve, 800));
 
-        // ★修正2：UUIDはすべて「小文字」で記述
-        const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-        const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
 
 const executeBLEConnection = async (device) => {
     try {
