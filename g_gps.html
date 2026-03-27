@@ -57,7 +57,7 @@
     <div class="close-btn" id="historyCloseBtn">CLOSE HISTORY</div>
     <div style="overflow-y: auto; height: calc(100% - 60px);"><table id="history-table"><thead><tr><th>LAP</th><th>TIME</th><th>MAX SPD</th><th>MAX RPM</th></tr></thead><tbody id="history-body"></tbody></table></div>
 </div>
-    
+
 <footer>
     <button id="intGpsBtn">INT GPS</button>
     <button id="btConnect">BLE START</button>
@@ -81,39 +81,82 @@ let bleDevice = null;
 let lastBleDataTime = 0;
 let bleWaiting = false;
 
-// --- BLE接続ロジック ---
+// --- BLE接続ロジック (自動再接続・3バイト処理) ---
 const executeBLEConnection = async (device) => {
     try {
         const server = await device.gatt.connect();
-        await new Promise(resolve => setTimeout(resolve, 800)); // iOS待機
+
+        // ★修正1：iPhoneの準備を待つ（これがないとサービス取得で失敗する）
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // ★修正2：UUIDはすべて「小文字」で記述
+        const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+        const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
+
+   char.addEventListener('characteristicvaluechanged', (e) => {
+const executeBLEConnection = async (device) => {
+    try {
+        const server = await device.gatt.connect();
+        
+        // iPhoneのための待機
+        await new Promise(resolve => setTimeout(resolve, 800));
 
         const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
         const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
 
-        char.oncharacteristicvaluechanged = (e) => {
+        // イベントリスナーで「届いたら即表示」を徹底
+        char.addEventListener('characteristicvaluechanged', (e) => {
             const d = e.target.value;
             if (d.byteLength >= 3) {
+                // Little EndianでHzを合成 (テストコードで確実な方法)
+                const low = d.getUint8(0);
+                const high = d.getUint8(1);
+                const hz = low + (high * 256);
+                
+                // Hzの合成
                 const hz = d.getUint8(0) | (d.getUint8(1) << 8);
                 const ppr = parseFloat(localStorage.getItem('pl1')) || 1;
                 
+                // 変数更新
                 currentRPM = (hz * 60) / ppr;
                 currentTemp = d.getUint8(2);
-                if (currentRPM > maxRpmInLap) maxRpmInLap = currentRPM;
 
                 lastBleDataTime = Date.now(); 
                 bleWaiting = false;
+
+                // 数値表示を強制更新
+                // ★この場でHTML要素を直接更新（これがiPhoneで動く鍵です）
+                document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
+                document.getElementById('temp_val').textContent = currentTemp;
+
+                // 通信フラグの更新
+                lastBleDataTime = Date.now(); 
+                bleWaiting = false;
             }
-        };
+        });
 
         await char.startNotifications();
         lastBleDataTime = Date.now(); 
-        console.log("BLE Active");
+        console.log("BLE Active: Display Updated in Event");
 
     } catch (e) {
         console.error("BLE Error:", e);
+        // 再接続ロジック
         setTimeout(() => { 
             if (device && device.gatt && !device.gatt.connected) executeBLEConnection(device); 
         }, 3000);
+    }
+};
+
+        await char.startNotifications();
+        console.log("BLE Active on iPhone");
+
+        // 接続直後に一度だけ赤くするために時刻を更新
+        lastBleDataTime = Date.now(); 
+
+    } catch (e) {
+        console.error("BLE Error:", e);
+        setTimeout(() => { if (device.gatt.connected) executeBLEConnection(device); }, 3000);
     }
 };
 
@@ -125,36 +168,56 @@ const onBLEDisconnected = (event) => {
 document.getElementById('btConnect').onclick = async () => {
     try {
         const dev = await navigator.bluetooth.requestDevice({
+            // UUIDをすべて「小文字」で記述（iOSの鉄則）
             filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }],
             optionalServices: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]
         });
         bleDevice = dev;
+        // 切断イベントを登録
         bleDevice.addEventListener('gattserverdisconnected', onBLEDisconnected);
+
+        // オレンジ色にして接続開始
         document.getElementById('btConnect').className = 'waiting';
         await executeBLEConnection(bleDevice);
     } catch (e) { 
-        console.error(e); 
+        console.error("Device Selection Error:", e); 
         document.getElementById('btConnect').className = '';
     }
 };
 
 // --- ステータス監視タイマー ---
+// --- ステータス監視タイマー（色変え判定の強化） ---
 setInterval(() => {
     const now = Date.now();
     const btBtn = document.getElementById('btConnect');
+
+    // 判定条件を「3秒間データが途絶えたら」に緩める（iPhoneの通信間隔に合わせる）
     if (now - lastBleDataTime < 3000) {
+        // データが届いている、または接続直後
         btBtn.className = 'btn-red';
         btBtn.textContent = 'BLE ACTIVE';
     } else if (bleWaiting || (bleDevice && bleDevice.gatt.connected)) {
+        // 接続はされているがデータ待ち
         btBtn.className = 'waiting';
         btBtn.textContent = 'CONNECTED...';
     } else {
+        // 完全に切断
         btBtn.className = '';
         btBtn.textContent = 'BLE START';
     }
-}, 500);
 
-// --- GPS / LAP Logic ---
+    // RELOADボタン（ライン設定）のチェック
+    const p1Lat = localStorage.getItem('startLineP1Lat');
+    const relBtn = document.getElementById('reloadBtn');
+    if (!p1Lat) {
+        relBtn.className = 'waiting';
+        relBtn.textContent = 'SET LINE!';
+    } else {
+        relBtn.className = '';
+        relBtn.textContent = 'RELOAD';
+    }
+}, 500); // 1000msから500msに早めて反応を良くする
+
 let slLine = { 
     p1: { lat: parseFloat(localStorage.getItem('startLineP1Lat')) || 34.825, lng: parseFloat(localStorage.getItem('startLineP1Lon')) || 137.452 }, 
     p2: { lat: parseFloat(localStorage.getItem('startLineP2Lat')) || 34.826, lng: parseFloat(localStorage.getItem('startLineP2Lon')) || 137.453 } 
@@ -189,14 +252,11 @@ function processLap(hitTime, useFreeze, isManual = false) {
     const lapT = hitTime - (lapStartTime || startTime);
     const coolDownLimit = parseInt(localStorage.getItem('lapCoolDownTime')) || 15000;
     if (!isManual && lapT < coolDownLimit) return;
-    
     if (maxSpeedInLap > sessionMaxSpeed) sessionMaxSpeed = maxSpeedInLap;
-    if (maxRpmInLap > sessionMaxRPM) sessionMaxRPM = maxRpmInLap;
-    
+    if (maxRpmInLap > sessionMaxRPM) maxRpmInLap = maxRpmInLap;
     lapRecords.unshift({ no: lapRecords.length + 1, time: lapT, max: Math.round(maxSpeedInLap), maxRpm: Math.round(maxRpmInLap) });
     const best = Math.min(...lapRecords.map(r => r.time));
     document.getElementById('lap').innerHTML = lapRecords.map(r => `<div class="lap-row ${r.time===best?'best-lap':''}"><span>L${r.no}</span><span>${timeFormat(r.time)}</span></div>`).join('');
-    
     lapStartTime = hitTime; maxSpeedInLap = 0; maxRpmInLap = 0;
     if (useFreeze) { isFrozen = true; freezeDisplayTime = timeFormat(lapT); freezeUntil = Date.now() + 15000; }
 }
@@ -212,6 +272,9 @@ function tick() {
             isFrozen = false;
             document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime));
         }
+    } else if (swState === 0) {
+        document.getElementById('display').textContent = "TOTAL 00:00.000";
+        document.getElementById('display1').textContent = "00:00.000";
     }
     requestAnimationFrame(tick);
 }
@@ -255,7 +318,6 @@ function drawTacho(rpm) {
     const sX = 30, hY = 60, bY = h - 30, rad = bY - hY, rightEnd = w - 20;
     const curveLen = (Math.PI * rad) / 2, lineLen = rightEnd - (sX + rad), totalLen = curveLen + lineLen;
     const cE = Math.round(seg * (curveLen / totalLen));
-    
     for (let i = 0; i <= seg; i++) {
         let x, y, ang;
         if (i <= cE) {
@@ -268,6 +330,7 @@ function drawTacho(rpm) {
             let color = "#222"; 
             const curRPMVal = (i / seg) * maxRPM;
             if (i < active) {
+                // 回転数色表示ロジック（成功版の数値へ）
                 color = (curRPMVal >= 10500) ? "#E4002B" : (curRPMVal >= 6000) ? "#004098" : "#FFFFFF";
             }
             ctx.fillStyle = color; ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2);
