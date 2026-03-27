@@ -83,48 +83,41 @@ let bleWaiting = false;
 
 // --- BLE接続ロジック (自動再接続・3バイト処理) ---
 const executeBLEConnection = async (device) => {
-    const btBtn = document.getElementById('btConnect');
     try {
-        console.log("Connecting to GATT...");
         const server = await device.gatt.connect();
         
-        // ★重要：iPhone対策として接続直後に少し待機
+        // ★修正1：iPhoneの準備を待つ（これがないとサービス取得で失敗する）
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        console.log("Getting Service...");
+        // ★修正2：UUIDはすべて「小文字」で記述
         const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-        
-        console.log("Getting Characteristic...");
         const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
 
         char.oncharacteristicvaluechanged = (e) => {
             const d = e.target.value;
             if (d.byteLength >= 3) {
                 const hz = d.getUint16(0, true); 
-                currentRPM = (hz * 60) / (pulseCount || 1);
+                
+                // ★修正3：変数 pulseCount ではなく直接 localStorage ('pl1') を参照
+                const ppr = parseFloat(localStorage.getItem('pl1')) || 1;
+                currentRPM = (hz * 60) / ppr;
                 currentTemp = d.getUint8(2);
-                lastBleDataTime = Date.now();
+                
+                // ★修正4：データが届いた瞬間に時刻を更新（これで「赤」になる）
+                lastBleDataTime = Date.now(); 
                 bleWaiting = false;
             }
         };
 
-        // 通知開始
         await char.startNotifications();
-        console.log("Notifications Started!");
+        console.log("BLE Active on iPhone");
         
-        // ここで初めて「接続完了」として扱う
-        bleWaiting = false;
-        lastBleDataTime = Date.now(); // 強制的に「今データが来た」ことにして赤くする
+        // 接続直後に一度だけ赤くするために時刻を更新
+        lastBleDataTime = Date.now(); 
 
     } catch (e) {
         console.error("BLE Error:", e);
-        bleWaiting = true;
-        // エラー時はボタンを初期状態に戻す
-        btBtn.className = 'waiting'; 
-        // 3秒後に再試行
-        setTimeout(() => {
-            if (device.gatt.connected) executeBLEConnection(device);
-        }, 3000);
+        setTimeout(() => { if (device.gatt.connected) executeBLEConnection(device); }, 3000);
     }
 };
 
