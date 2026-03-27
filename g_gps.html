@@ -82,45 +82,48 @@ let lastBleDataTime = 0;
 let bleWaiting = false;
 
 // --- BLE接続ロジック (自動再接続・3バイト処理) ---
-// --- BLE接続ロジック (iPhone/Bluefy 安定化版) ---
 const executeBLEConnection = async (device) => {
+    const btBtn = document.getElementById('btConnect');
     try {
+        console.log("Connecting to GATT...");
         const server = await device.gatt.connect();
+        
+        // ★重要：iPhone対策として接続直後に少し待機
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        console.log("Getting Service...");
         const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+        
+        console.log("Getting Characteristic...");
         const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
 
-        // 通知を受け取った時の処理
         char.oncharacteristicvaluechanged = (e) => {
             const d = e.target.value;
-            // 4バイトパケット (LSB, MSB, Temp, Dummy) を解析
             if (d.byteLength >= 3) {
-                // 最初の2バイトをHzとして取得
                 const hz = d.getUint16(0, true); 
-                // localStorageから取得したパルス数で割る
                 currentRPM = (hz * 60) / (pulseCount || 1);
-                // 3番目のバイトを温度として取得
                 currentTemp = d.getUint8(2);
-                
                 lastBleDataTime = Date.now();
                 bleWaiting = false;
             }
         };
 
-        // ★iPhone/Bluefy対策：少し待ってから通知を開始する
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 通知開始
         await char.startNotifications();
+        console.log("Notifications Started!");
         
-        console.log("BLE Connected & Notifications Started");
-        bleWaiting = false; // 接続完了フラグ
+        // ここで初めて「接続完了」として扱う
+        bleWaiting = false;
+        lastBleDataTime = Date.now(); // 強制的に「今データが来た」ことにして赤くする
 
     } catch (e) {
-        console.error("BLE Connection Error:", e);
-        // 失敗した場合は3秒後にリトライ（再接続ループ）
+        console.error("BLE Error:", e);
         bleWaiting = true;
+        // エラー時はボタンを初期状態に戻す
+        btBtn.className = 'waiting'; 
+        // 3秒後に再試行
         setTimeout(() => {
-            if (device.gatt.connected) {
-                executeBLEConnection(device);
-            }
+            if (device.gatt.connected) executeBLEConnection(device);
         }, 3000);
     }
 };
@@ -133,12 +136,22 @@ const onBLEDisconnected = (event) => {
 document.getElementById('btConnect').onclick = async () => {
     try {
         const dev = await navigator.bluetooth.requestDevice({
-            filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }]
+            // filtersだけでなく、optionalServicesにも同じUUIDを入れるのがiPhoneの鉄則
+            filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }],
+            optionalServices: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]
         });
         bleDevice = dev;
         bleDevice.addEventListener('gattserverdisconnected', onBLEDisconnected);
+        
+        // ボタンを「接続中（オレンジ）」にする
+        document.getElementById('btConnect').className = 'waiting';
+        bleWaiting = true;
+        
         await executeBLEConnection(bleDevice);
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error(e);
+        document.getElementById('btConnect').className = '';
+    }
 };
 
 // --- ステータス監視タイマー ---
