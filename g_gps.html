@@ -93,21 +93,26 @@ const executeBLEConnection = async (device) => {
         const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
         const char = await service.getCharacteristic("f4deb353-a4cf-4ffb-badb-2a5f2e3bb630");
 
-        char.oncharacteristicvaluechanged = (e) => {
+   char.addEventListener('characteristicvaluechanged', (e) => {
             const d = e.target.value;
             if (d.byteLength >= 3) {
-                const hz = d.getUint16(0, true); 
+                // Little EndianでHzを合成 (テストコードで確実な方法)
+                const low = d.getUint8(0);
+                const high = d.getUint8(1);
+                const hz = low + (high * 256);
                 
-                // ★修正3：変数 pulseCount ではなく直接 localStorage ('pl1') を参照
                 const ppr = parseFloat(localStorage.getItem('pl1')) || 1;
                 currentRPM = (hz * 60) / ppr;
                 currentTemp = d.getUint8(2);
                 
-                // ★修正4：データが届いた瞬間に時刻を更新（これで「赤」になる）
                 lastBleDataTime = Date.now(); 
                 bleWaiting = false;
+
+                // 数値表示を強制更新
+                document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
+                document.getElementById('temp_val').textContent = currentTemp;
             }
-        };
+        });
 
         await char.startNotifications();
         console.log("BLE Active on iPhone");
