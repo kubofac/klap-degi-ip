@@ -276,6 +276,7 @@ document.getElementById('gpxBtn').onclick = () => {
     const baseT = trackPoints[0].t;
     trackPoints.forEach(p => { 
         const iso = new Date(946684800000 + (p.t - baseT)).toISOString();
+        const speedMS = (p.spd / 3.6).toFixed(2);
         xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${iso}</time><speed>${(p.spd/3.6).toFixed(2)}</speed><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>`; 
     });
     xml += `</trkseg></trk></gpx>`;
