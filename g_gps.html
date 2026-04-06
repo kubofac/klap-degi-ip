@@ -274,11 +274,22 @@ document.getElementById('gpxBtn').onclick = () => {
     const lineData = `SL:${slLine.p1.lat},${slLine.p1.lng},${slLine.p2.lat},${slLine.p2.lng}`;
     let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="KLAP_DEGI" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"><metadata><desc>LINE_DATA[${lineData}]</desc></metadata><trk><trkseg>`;
     const baseT = trackPoints[0].t;
-    trackPoints.forEach(p => { 
-        const iso = new Date(946684800000 + (p.t - baseT)).toISOString();
-        const speedMS = (p.spd / 3.6).toFixed(2);
-        xml += `<trkpt lat="${p.lat}" lon="${p.lng}"><time>${iso}</time><speed>${(p.spd/3.6).toFixed(2)}</speed><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>`; 
-    });
+ trackPoints.forEach(p => { 
+    const iso = new Date(946684800000 + (p.t - baseT)).toISOString();
+    const speedMS = (p.spd / 3.6).toFixed(2); // m/s単位
+    
+    xml += `<trkpt lat="${p.lat}" lon="${p.lng}">`;
+    xml += `<time>${iso}</time>`;
+    xml += `<speed>${speedMS}</speed>`; // 標準タグ
+    xml += `<extensions>`;
+    // 解析側が優先的に読み込む speed と rpm を明示的に入れる
+    xml += `<speed>${speedMS}</speed>`; 
+    xml += `<rpm>${Math.round(p.rpm)}</rpm>`;
+    // 互換性のためのGarmin形式（任意）
+    xml += `<gpxtpx:TrackPointExtension><gpxtpx:hr>${Math.round(p.rpm)}</gpxtpx:hr></gpxtpx:TrackPointExtension>`;
+    xml += `</extensions>`;
+    xml += `</trkpt>`;
+});
     xml += `</trkseg></trk></gpx>`;
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([xml], { type: 'application/gpx+xml' }));
     a.download = `KLAP_V1064_${Date.now()}.gpx`; a.click();
