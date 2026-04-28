@@ -74,7 +74,7 @@ let sessionMaxSpeed = 0, sessionMaxRPM = 0, swState = 0, startTime = 0, lapStart
 let lapRecords = [], trackPoints = [], lastPos = null, learnedHeading = null, watchId = null;
 let isFrozen = false, freezeDisplayTime = "", freezeUntil = 0;
 let pulseCount = parseFloat(localStorage.getItem('pl1')) || 1;
-
+let displayedRPM = 0;
 let bleDevice = null, lastBleDataTime = 0, bleWaiting = false;
 
 // --- BLE接続ロジック (addEventListener採用) ---
@@ -206,7 +206,10 @@ function tick() {
 
 // ★独立した描画ループ（タイマー停止中も常時稼働）
 function renderLoop() {
-    drawTacho(currentRPM);
+    // 0.1〜0.2の間で調整。数値が小さいほどヌルヌル動き、大きいほど機敏になります。
+    displayedRPM += (currentRPM - displayedRPM) * 0.15; 
+    
+    drawTacho(displayedRPM); // 引数を currentRPM から displayedRPM に変更
     requestAnimationFrame(renderLoop);
 }
 
@@ -259,7 +262,7 @@ function drawTacho(rpm) {
             ctx.fillText(Math.round((i / seg) * 14), Math.cos(ang) * 32, Math.sin(ang) * 32); ctx.restore();
         }
     }
-    document.getElementById('rpm_val').textContent = Math.floor(rpm);
+    document.getElementById('rpm_val').textContent = Math.floor(currentRPM);
     document.getElementById('speed_val').textContent = Math.round(currentSpeedKmh);
     document.getElementById('max_speed_val').textContent = Math.round(Math.max(maxSpeedInLap, sessionMaxSpeed));
     document.getElementById('temp_val').textContent = currentTemp;
