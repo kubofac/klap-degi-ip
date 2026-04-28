@@ -185,9 +185,18 @@ function processLap(hitTime, useFreeze, isManual = false) {
 function tick() {
     const now = Date.now();
     if (swState === 1) {
+        // --- 【追加】ラップ内の最高回転数をリアルタイム更新 ---
+        if (currentRPM > maxRpmInLap) {
+            maxRpmInLap = currentRPM;
+        }
+
         document.getElementById('display').textContent = "TOTAL " + timeFormat(now - startTime);
-        if (isFrozen && now < freezeUntil) { document.getElementById('display1').textContent = freezeDisplayTime; }
-        else { isFrozen = false; document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime)); }
+        if (isFrozen && now < freezeUntil) { 
+            document.getElementById('display1').textContent = freezeDisplayTime; 
+        } else { 
+            isFrozen = false; 
+            document.getElementById('display1').textContent = timeFormat(now - (lapStartTime || startTime)); 
+        }
     } else if (swState === 0) {
         document.getElementById('display').textContent = "TOTAL 00:00.000";
         document.getElementById('display1').textContent = "00:00.000";
