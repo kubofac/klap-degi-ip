@@ -2,7 +2,7 @@
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "app.vercel.klap_degi_ip.twa",
-        "sha256_cert_fingerprints": ["59:EA:52:2B:00:CD:62:C0:02:C5:BE:AC:BD:9F:8B:F4:74:C2:DF:84:5B:BD:C3:1D:6D:23:C8:0D:B0:C9:5C:69"]
+        "package_name": "com.kfactoryclub.klap_degi_ip.twa",
+        "sha256_cert_fingerprints": ["C7:54:03:19:40:BC:B2:D9:9D:37:43:EF:F5:57:B6:C8:52:33:1A:CD:66:09:19:57:9A:67:38:DF:9B:F6:8D:01"]
       }
     }]
